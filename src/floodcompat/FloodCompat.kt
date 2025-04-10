@@ -99,7 +99,7 @@ class FloodCompat : Mod() {
     /** This is a function so that foo's can call it when downloading the mod */
     private fun onWorldLoad() {
         Log.debug("Send flood")
-        Call.serverPacketReliable("flood", "1.2")
+        Call.serverPacketReliable("flood", mods.getMod("floodcompat").meta.version)
 
         allTiles.clear()
         allTasks.each{ it.cancel() }
@@ -130,9 +130,6 @@ class FloodCompat : Mod() {
             thoriumReactor, "health", 1400,
             massDriver, "health", 1250,
             impactReactor, "rebuildable", false,
-            *(fuse as ItemTurret).ammoTypes.flatMap { Seq.with(it.value, "pierce", false) }.toTypedArray(),
-            (fuse as ItemTurret).ammoTypes.get(Items.titanium), "damage", 10,
-            (fuse as ItemTurret).ammoTypes.get(Items.thorium), "damage", 20,
             *(scathe as ItemTurret).ammoTypes.flatMap { Seq.with(
                 it.value, "buildingDamageMultiplier", 0.3F,
                 it.value, "damage", 700,
@@ -147,10 +144,27 @@ class FloodCompat : Mod() {
                 it.value, "damage", 560,
                 it.value, "buildingDamageMultiplier", 1f
             ) }.toTypedArray(),
+            *(cyclone as ItemTurret).ammoTypes.flatMap {
+                if (it.key == Items.blastCompound) { Seq.with(
+                    it.value, "splashDamage", 20
+                ) }
+                else {Seq.with()}}.toTypedArray(),
+            *(spectre as ItemTurret).ammoTypes.flatMap {
+                if (it.key == Items.thorium) { Seq.with(
+                    it.value, "pierceCap", 6
+                ) }
+                else {Seq.with()}}.toTypedArray(),
+            *(titan as ItemTurret).ammoTypes.flatMap { Seq.with(
+                it.value, "splashDamagePierce", true,
+                it.value, "scaledSplashDamage", false
+            ) }.toTypedArray(),
 
             // Units
             pulsar, "commands", arrayOf(UnitCommand.moveCommand, UnitCommand.boostCommand, UnitCommand.mineCommand),
             quasar, "commands", arrayOf(UnitCommand.moveCommand, UnitCommand.boostCommand, UnitCommand.mineCommand),
+            vela, "commands", arrayOf(UnitCommand.moveCommand, UnitCommand.boostCommand, UnitCommand.mineCommand),
+            vela, "mineTier", 4,
+            vela, "mineSpeed", 10.5F,
             pulsar, "abilities", Seq<Ability>(0), // pulsar.abilities.clear()
             bryde, "abilities", Seq<Ability>(0), // pulsar.abilities.clear()
             *quad.weapons.flatMap { Seq.with(
@@ -164,7 +178,7 @@ class FloodCompat : Mod() {
             ) }.toArray(),
             *scepter.weapons.flatMap { if (it.name == "scepter-weapon") Seq.with(
                 it, "bullet.pierce", true,
-                it, "bullet.pierceCap", 8
+                it, "bullet.pierceCap", 3
             ) else Seq.with(it, "bullet.damage", 25) }.toArray(),
             *reign.weapons.flatMap { Seq.with(
                 it, "bullet.damage", 120,
@@ -175,20 +189,19 @@ class FloodCompat : Mod() {
             crawler, "targetAir", false,
             spiroct, "targetAir", false,
             spiroct, "speed", 0.4F,
-            *spiroct.weapons.flatMap { Seq.with(it, "bullet.damage", if (it.name == "spiroct-weapon") 25 else 20 ).apply { if (it.bullet is SapBulletType) this.add(it, "bullet.sapStrength", 0) } }.toArray(),
+            *spiroct.weapons.flatMap { Seq.with(it, "bullet.damage", if (it.name == "spiroct-weapon") 25 else 20 ) }.toArray(),
             arkyid, "targetAir", false,
             arkyid, "speed", 0.5F,
             arkyid, "hitSize", 21,
             *arkyid.weapons.flatMap {
-                if (it.bullet is SapBulletType) Seq.with(it, "bullet.sapStrength", 0)
+                if(it.bullet is SapBulletType) Seq.with()
                 else Seq.with(
+                    it, "bullet.damage", 80,
                     it, "bullet.collidesAir", true,
                     it, "bullet.collidesGround", true,
                     it, "bullet.splashDamagePierce", true,
                     it, "bullet.splashDamageRadius", 20,
-                    it, "bullet.splashDamage", 15,
-                    it, "bullet.lightning", 0,
-                    it, "bullet.buildingDamageMultiplier", 0.01F
+                    it, "bullet.splashDamage", 35,
                 )
             }.toArray(),
             crawler, "health", 100,
@@ -199,8 +212,9 @@ class FloodCompat : Mod() {
             atrax, "speed", 0.5F,
             toxopid, "hitSize", 21,
             *toxopid.weapons.flatMap<Any> { if (it.name == "toxopid-cannon") Seq.with(
-                it.bullet.fragBullet, "pierce", true, // TODO: Make all of the other bullet references it.bullet, "blah" instead of it, "bullet.blah"
-                it.bullet.fragBullet, "pierceCap", 2
+                it.bullet.fragBullet, "splashDamagePierce", true,
+                it.bullet.fragBullet, "splashDamageRadius", 50,
+                it.bullet, "splashDamagePierce", true,
             ) else Seq.with() }.toArray(),
             flare, "health", 275,
             flare, "engineOffset", 5.5F,
@@ -223,16 +237,37 @@ class FloodCompat : Mod() {
             *conquer.weapons.first().bullet.spawnBullets.flatMap<Any> { Seq.with(it, "splashDamagePierce", true) }.toArray(),
             *merui.weapons.flatMap<Any> { Seq.with(
                 it.bullet, "collides", true,
-                it.bullet, "splashDamagePierce", true
+                it.bullet, "splashDamagePierce", true,
+                it.bullet, "damage", 20
+            ) }.toArray(),
+            *elude.weapons.flatMap { Seq.with(
+                it.bullet, "damage", 35
+            ) }.toArray(),
+            *locus.weapons.flatMap { Seq.with(
+                it.bullet, "pierce", true,
+                it.bullet, "pierceCap", 3,
+                it.bullet, "pierceDamageFactor", 0.15F
             ) }.toArray(),
             *anthicus.weapons.flatMap { Seq.with(it, "bullet.splashDamagePierce", true) }.toArray(),
+            *obviate.weapons.flatMap { Seq.with(
+                it.bullet, "splashDamage", 40,
+                it.bullet, "splashDamageRadius", 20,
+                it.bullet, "splashDamagePierce", true
+            ) }.toArray(),
+            *precept.weapons.flatMap { Seq.with(
+                it.bullet, "pierceCap", 3
+            ) }.toArray(),
             *quell.weapons.flatMap { Seq.with(
                 it.bullet, "splashDamagePierce", true,
                 it.bullet, "buildingDamageMultiplier", 0.5F
             ) }.toArray(),
             *disrupt.weapons.flatMap { Seq.with(
                 it.bullet, "splashDamagePierce", true,
-                it.bullet, "buildingDamageMultiplier", 0.5F
+                it.bullet, "buildingDamageMultiplier", 0.5F,
+                it.bullet, "splashDamageRadius", 32
+            ) }.toArray(),
+            *collaris.weapons.flatMap { Seq.with(
+                it.bullet, "splashDamageRadius", 42
             ) }.toArray()
         )
 
