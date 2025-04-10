@@ -40,7 +40,7 @@ class FloodCompat : Mod() {
 
         netClient.addPacketHandler("flood") { if (Strings.canParseInt(it)) enable() }
         netClient.addPacketHandler("anticreep") { string: String ->
-            if (!applied) return@addPacketHandler // This can eat some anticreep packets right when the player joins but its not a big deal
+            if (!applied) return@addPacketHandler // This can eat some anticreep packets right when the player joins, but it's not a big deal
 
             val vars = string.split(":", limit = 4)
 
@@ -138,9 +138,6 @@ class FloodCompat : Mod() {
                 it.value, "damage", 700,
                 it.value, "splashDamage", 80
             ) }.toTypedArray(),
-            lancer, "shootType.damage", 10,
-            arc, "shootType.damage", 4,
-            arc, "shootType.lightningLength", 15,
             parallax, "force", 8,
             parallax, "scaledForce", 7,
             parallax, "range", 230,
