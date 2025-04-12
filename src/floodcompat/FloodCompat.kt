@@ -146,7 +146,10 @@ class FloodCompat : Mod() {
             ) }.toTypedArray(),
             *(cyclone as ItemTurret).ammoTypes.flatMap {
                 if (it.key == Items.blastCompound) { Seq.with(
-                    it.value, "splashDamage", 20
+                    it.value, "splashDamage", 20f,
+                    it.value, "ammoMultiplier", 3f,
+                    it.value, "splashDamageRadius", 45f,
+                    it.value, "splashDamagePierce", true
                 ) }
                 else {Seq.with()}}.toTypedArray(),
             *(spectre as ItemTurret).ammoTypes.flatMap {
