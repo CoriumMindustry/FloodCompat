@@ -163,9 +163,9 @@ class FloodCompat : Mod() {
             ) }.toTypedArray(),
 
             // Units
-            pulsar, "commands", arrayOf(UnitCommand.moveCommand, UnitCommand.boostCommand, UnitCommand.mineCommand),
-            quasar, "commands", arrayOf(UnitCommand.moveCommand, UnitCommand.boostCommand, UnitCommand.mineCommand),
-            vela, "commands", arrayOf(UnitCommand.moveCommand, UnitCommand.boostCommand, UnitCommand.mineCommand),
+            pulsar, "commands", Seq.with(UnitCommand.moveCommand, UnitCommand.boostCommand, UnitCommand.mineCommand),
+            quasar, "commands", Seq.with(UnitCommand.moveCommand, UnitCommand.boostCommand, UnitCommand.mineCommand),
+            vela, "commands", Seq.with(UnitCommand.moveCommand, UnitCommand.boostCommand, UnitCommand.mineCommand),
             vela, "mineTier", 4,
             vela, "mineSpeed", 10.5F,
             pulsar, "abilities", Seq<Ability>(0), // pulsar.abilities.clear()
