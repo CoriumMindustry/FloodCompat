@@ -10,6 +10,7 @@ import mindustry.ai.*
 import mindustry.content.*
 import mindustry.content.Blocks.*
 import mindustry.content.UnitTypes.*
+import mindustry.core.Version
 import mindustry.entities.abilities.*
 import mindustry.entities.bullet.*
 import mindustry.game.*
@@ -35,10 +36,19 @@ class FloodCompat : Mod() {
         Log.info("Flood Compatibility loaded!")
 
         Events.on(EventType.ResetEvent::class.java) { disable() }
-        Events.on(EventType.WorldLoadEvent::class.java) { onWorldLoad() }
         if (!state.isMenu) onWorldLoad() // Mod was initialized after loading a world (realistically just foo's downloading the mod at runtime)
 
-        netClient.addPacketHandler("flood") { if (Strings.canParseInt(it)) enable() }
+        netClient.addPacketHandler("flood-v") { string: String ->
+            Log.debug("Flood responded")
+            enable()
+
+            if(Strings.parseFloat(string) > Strings.parseFloat(mods.getMod("floodcompat").meta.version))
+                ui.chatfrag.addMessage("[scarlet]Your FloodCompat is outdated!\\nSome features may not be available until you update.")
+
+            // Respond to flood so it would know we're using the mod
+            Call.serverPacketReliable("flood-rs", "")
+        }
+
         netClient.addPacketHandler("anticreep") { string: String ->
             if (!applied) return@addPacketHandler // This can eat some anticreep packets right when the player joins, but it's not a big deal
 
@@ -98,8 +108,9 @@ class FloodCompat : Mod() {
 
     /** This is a function so that foo's can call it when downloading the mod */
     private fun onWorldLoad() {
-        Log.debug("Send flood")
-        Call.serverPacketReliable("flood", mods.getMod("floodcompat").meta.version)
+        Log.debug("Sent flood")
+        // Ask flood to resend the init packet
+        Call.serverPacketReliable("flood-pr", "")
 
         allTiles.clear()
         allTasks.each{ it.cancel() }
@@ -108,7 +119,7 @@ class FloodCompat : Mod() {
 
     /** Applies flood changes */
     private fun enable() {
-        if (applied) throw AssertionError("Tried to enable flood even though it was already enabled!")
+        if (applied) return
         applied = true
 
         Log.info("Enabling FloodCompat")
