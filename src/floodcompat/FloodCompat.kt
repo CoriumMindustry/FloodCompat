@@ -52,7 +52,7 @@ class FloodCompat : Mod() {
                 ui.chatfrag.addMessage("[scarlet]Your FloodCompat is outdated!\nSome features may not be available until you update.")
 
             // Respond to flood so it would know we're using the mod
-            Call.serverBinaryPacketReliable("flood-rs", ByteArray(0))
+            Core.app.post( { Call.serverPacketReliable("flood-rs", "") } )
         }
 
         netClient.addBinaryPacketHandler("anticreep") { bytes: ByteArray ->
@@ -116,7 +116,7 @@ class FloodCompat : Mod() {
     private fun onWorldLoad() {
         Log.debug("Sent flood")
         // Ask flood to resend the init packet
-        Call.serverBinaryPacketReliable("flood-pr", ByteArray(0))
+        Core.app.post( { Call.serverPacketReliable("flood-pr", "") } )
 
         allTiles.clear()
         allTasks.each{ it.cancel() }
