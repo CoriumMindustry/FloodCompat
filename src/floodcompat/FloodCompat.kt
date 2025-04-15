@@ -35,15 +35,21 @@ class FloodCompat : Mod() {
     override fun init() {
         Log.info("Flood Compatibility loaded!")
 
+        // call onWorldLoad() - it's necessary for /sync to not disable the mod
+        Events.on(EventType.WorldLoadEvent::class.java) { onWorldLoad() }
+
         Events.on(EventType.ResetEvent::class.java) { disable() }
         if (!state.isMenu) onWorldLoad() // Mod was initialized after loading a world (realistically just foo's downloading the mod at runtime)
 
+        // ignore this packet if stuff was already applied, probably sent twice due to us asking the server
         netClient.addPacketHandler("flood-v") { string: String ->
+            if(applied) return@addPacketHandler
+
             Log.debug("Flood responded")
             enable()
 
             if(Strings.parseFloat(string) > Strings.parseFloat(mods.getMod("floodcompat").meta.version))
-                ui.chatfrag.addMessage("[scarlet]Your FloodCompat is outdated!\\nSome features may not be available until you update.")
+                ui.chatfrag.addMessage("[scarlet]Your FloodCompat is outdated!\nSome features may not be available until you update.")
 
             // Respond to flood so it would know we're using the mod
             Call.serverPacketReliable("flood-rs", "")
