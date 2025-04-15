@@ -10,7 +10,6 @@ import mindustry.ai.*
 import mindustry.content.*
 import mindustry.content.Blocks.*
 import mindustry.content.UnitTypes.*
-import mindustry.core.Version
 import mindustry.entities.abilities.*
 import mindustry.entities.bullet.*
 import mindustry.game.*
@@ -19,6 +18,7 @@ import mindustry.mod.*
 import mindustry.world.*
 import mindustry.world.blocks.defense.turrets.*
 import java.lang.reflect.*
+import java.nio.*
 
 // Based on old foo's implementation
 class FloodCompat : Mod() {
@@ -42,31 +42,31 @@ class FloodCompat : Mod() {
         if (!state.isMenu) onWorldLoad() // Mod was initialized after loading a world (realistically just foo's downloading the mod at runtime)
 
         // ignore this packet if stuff was already applied, probably sent twice due to us asking the server
-        netClient.addPacketHandler("flood-v") { string: String ->
-            if(applied) return@addPacketHandler
+        netClient.addBinaryPacketHandler("flood-v") { bytes: ByteArray ->
+            if(applied) return@addBinaryPacketHandler
 
             Log.debug("Flood responded")
             enable()
 
-            if(Strings.parseFloat(string) > Strings.parseFloat(mods.getMod("floodcompat").meta.version))
+            if(ByteBuffer.wrap(bytes).getFloat() > Strings.parseFloat(mods.getMod("floodcompat").meta.version, -1f))
                 ui.chatfrag.addMessage("[scarlet]Your FloodCompat is outdated!\nSome features may not be available until you update.")
 
             // Respond to flood so it would know we're using the mod
-            Call.serverPacketReliable("flood-rs", "")
+            Call.serverBinaryPacketReliable("flood-rs", ByteArray(0))
         }
 
-        netClient.addPacketHandler("anticreep") { string: String ->
-            if (!applied) return@addPacketHandler // This can eat some anticreep packets right when the player joins, but it's not a big deal
+        netClient.addBinaryPacketHandler("anticreep") { bytes: ByteArray ->
+            if (!applied || bytes.size < 10) return@addBinaryPacketHandler // This can eat some anticreep packets right when the player joins, but it's not a big deal
 
-            val vars = string.split(":", limit = 4)
+            val buffer = ByteBuffer.wrap(bytes)
 
-            val pos = Strings.parseInt(vars[0])
-            val rad = Strings.parseInt(vars[1])
-            val time = Strings.parseInt(vars[2])
-            val team = Strings.parseInt(vars[3])
+            val pos = buffer.getInt()
+            val time = buffer.getFloat()
+            val team = (buffer.get().toInt() and 0xff)
+            val rad = (buffer.get().toInt() and 0xff)
 
-            if (pos <= 0 || rad <= 0 || time <= 0 || team <= 0) return@addPacketHandler
-            val tile = world.tile(pos) ?: return@addPacketHandler
+            if (pos <= 0 || rad <= 0 || time <= 0 || team <= 0) return@addBinaryPacketHandler
+            val tile = world.tile(pos) ?: return@addBinaryPacketHandler
             val color = Team.get(team).color
 
             val tiles = Seq<Tile>()
@@ -93,7 +93,7 @@ class FloodCompat : Mod() {
                             )
                         }, Mathf.random(1f))
                     }
-                }, 0f, 1f, time),
+                }, 0f, 1f, time.toInt()),
 
                 Timer.schedule({
                     allTiles.removeAll(tiles)
@@ -116,7 +116,7 @@ class FloodCompat : Mod() {
     private fun onWorldLoad() {
         Log.debug("Sent flood")
         // Ask flood to resend the init packet
-        Call.serverPacketReliable("flood-pr", "")
+        Call.serverBinaryPacketReliable("flood-pr", ByteArray(0))
 
         allTiles.clear()
         allTasks.each{ it.cancel() }
