@@ -152,9 +152,6 @@ class FloodCompat : Mod() {
                 it.value, "damage", 700,
                 it.value, "splashDamage", 80
             ) }.toTypedArray(),
-            parallax, "force", 8,
-            parallax, "scaledForce", 7,
-            parallax, "range", 230,
             parallax, "damage", 6,
             *(foreshadow as ItemTurret).ammoTypes.flatMap { Seq.with(
                 it.value, "createChance", 0f,
