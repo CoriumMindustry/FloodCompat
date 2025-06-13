@@ -3,27 +3,31 @@ package floodcompat;
 import arc.*;
 import arc.graphics.*;
 import arc.graphics.g2d.*;
+import arc.math.*;
 import arc.struct.*;
 import mindustry.*;
+import mindustry.entities.*;
 import mindustry.game.*;
+import mindustry.type.*;
 import mindustry.world.*;
 import mindustry.world.blocks.defense.*;
 
+import static mindustry.Vars.*;
 import static arc.graphics.g2d.Draw.*;
 import static mindustry.content.Blocks.*;
 
 public class EditDrawers{
     public static ObjectMap<Block, Color> colors = ObjectMap.of(
-        scrapWall, new Color(0.482f, 0.655f, 0.804f, 0.33f),
-        titaniumWall, new Color(0.384f, 0.541f, 0.761f, 0.47f),
-        thoriumWall, new Color(0.306f, 0.451f, 0.765f, 0.52f),
-        phaseWall, new Color(0.161f, 0.353f, 0.769f, 0.7f),
-        surgeWall, new Color(0.145f, 0.216f, 0.784f, 0.8f),
-        reinforcedSurgeWall, new Color(0.118f, 0.118f, 0.663f, 0.89f),
-        plastaniumWall, new Color(0.063f, 0.063f, 0.58f, 0.91f),
-        berylliumWall, new Color(0.039f, 0.039f, 0.463f, 0.89f),
-        tungstenWall, new Color(0.02f, 0.02f, 0.337f, 0.89f),
-        carbideWall, new Color(0.016f, 0.016f, 0.196f)
+        scrapWall, new Color(0.518f, 0.725f, 0.82f, 0.69f),
+        titaniumWall, new Color(0.388f, 0.682f, 0.82f, 0.75f),
+        thoriumWall, new Color(0.286f, 0.616f, 0.769f, 0.75f),
+        phaseWall, new Color(0.208f, 0.573f, 0.741f, 0.75f),
+        surgeWall, new Color(0.153f, 0.525f, 0.702f, 0.8f),
+        reinforcedSurgeWall, new Color(0.106f, 0.478f, 0.651f, 0.8f),
+        plastaniumWall, new Color(0.059f, 0.435f, 0.612f, 0.8f),
+        berylliumWall, new Color(0.035f, 0.4f, 0.569f, 0.85f),
+        tungstenWall, new Color(0.024f, 0.361f, 0.522f, 0.85f),
+        carbideWall, new Color(0f, 0.329f, 0.478f, 0.9f)
     );
 
     public static void init(){
@@ -53,6 +57,55 @@ public class EditDrawers{
                         if(isFlood()) return;
 
                         super.drawTeam();
+                    }
+
+                    @Override
+                    public void killed(){
+                        dead = true;
+                        Events.fire(new EventType.BlockDestroyEvent(tile));
+
+                        if(!isFlood())
+                            block.destroySound.at(tile, Mathf.random(block.destroyPitchMin, block.destroyPitchMax));
+
+                        onDestroyed();
+                        if(tile != emptyTile)
+                            tile.remove();
+
+                        remove();
+                        afterDestroyed();
+                    }
+
+                    @Override
+                    public void onDestroyed(){
+                        float explosiveness = block.baseExplosiveness;
+                        float flammability = 0f;
+                        float power = 0f;
+
+                        if(block.hasItems){
+                            for(Item item : content.items()){
+                                int amount = Math.min(items.get(item), explosionItemCap());
+                                explosiveness += item.explosiveness * amount;
+                                flammability += item.flammability * amount;
+                                power += item.charge * Mathf.pow(amount, 1.1f) * 150f;
+                            }
+                        }
+
+                        if(block.hasLiquids){
+                            flammability += liquids.sum((liquid, amount) -> liquid.flammability * amount / 2f);
+                            explosiveness += liquids.sum((liquid, amount) -> liquid.explosiveness * amount / 2f);
+                        }
+
+                        if(block.consPower != null && block.consPower.buffered)
+                            power += this.power.status * block.consPower.capacity;
+
+                        if(block.hasLiquids && state.rules.damageExplosions)
+                            liquids.each(this::splashLiquid);
+
+                        //cap explosiveness so fluid tanks/vaults don't instakill units
+                        Damage.dynamicExplosion(x, y, flammability * block.flammabilityScale, explosiveness * 3.5f * block.explosivenessScale, power, tilesize * block.size / 2f, state.rules.damageExplosions, block.destroyEffect, block.baseShake);
+
+                        if(!isFlood() && block.createRubble && !floor().solid && !floor().isLiquid)
+                            Effect.rubble(x, y, block.size);
                     }
                 };
             }
