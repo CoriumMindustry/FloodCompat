@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import proguard.gradle.ProGuardTask
 
 buildscript {
     repositories {
@@ -27,13 +28,14 @@ sourceSets.main.kotlin.srcDirs = ["src"]
 repositories{
     mavenCentral()
 
+    maven{ url "https://maven.xpdustry.com/mindustry" }
     maven{ url "https://raw.githubusercontent.com/Zelaux/MindustryRepo/master/repository" }
     maven{ url 'https://www.jitpack.io' }
 }
 
 ext{
     //the build number that this mod is made for
-    mindustryVersion = 'v147.1'
+    mindustryVersion = 'v149'
     jabelVersion = "93fde537c7"
     sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
 }
@@ -109,7 +111,7 @@ kotlin.compilerOptions {
     freeCompilerArgs.add("-Xjdk-release=1.8")
 }
 
-tasks.register("minimize", proguard.gradle.ProGuardTask) { // We shrink because of kotlin being >1MB
+tasks.register("minimize", ProGuardTask) { // We shrink because of kotlin being >1MB
     dependsOn jar
 
     injars "build/libs/FloodCompatUnshrunk.jar", filter: '!module-info.class,!META-INF/**,!**.kotlin_builtins'
@@ -126,14 +128,3 @@ tasks.register("minimize", proguard.gradle.ProGuardTask) { // We shrink because 
 
     configuration "rules.pro"
 }
-
-//gr8 {
-//    var shadowedJar = create("gr8") {
-//        proguardFile("rules.pro")
-//        configuration("shade")
-//    }
-//
-//    replaceOutgoingJar(shadowedJar)
-//
-////    removeGradleApifromapi()
-//}

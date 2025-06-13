@@ -31,9 +31,13 @@ class FloodCompat : Mod() {
     /** Used to prevent flood from applying twice */
     private var applied = false
 
-
     override fun init() {
         Log.info("Flood Compatibility loaded!")
+
+        Events.on(EventType.ClientLoadEvent::class.java) {
+            EditDrawers.init()
+            Core.settings.put("fc-applied", false)
+        }
 
         // call onWorldLoad() - it's necessary for /sync to not disable the mod
         Events.on(EventType.WorldLoadEvent::class.java) { onWorldLoad() }
@@ -43,12 +47,12 @@ class FloodCompat : Mod() {
 
         // ignore this packet if stuff was already applied, probably sent twice due to us asking the server
         netClient.addBinaryPacketHandler("flood-v") { bytes: ByteArray ->
-            if(applied) return@addBinaryPacketHandler
+            if (applied) return@addBinaryPacketHandler
 
             Log.debug("Flood responded")
             enable()
 
-            if(ByteBuffer.wrap(bytes).getFloat() > Strings.parseFloat(mods.getMod("floodcompat").meta.version, -1f))
+            if (ByteBuffer.wrap(bytes).getFloat() > Strings.parseFloat(mods.getMod("floodcompat").meta.version, -1f))
                 ui.chatfrag.addMessage("[scarlet]Your FloodCompat is outdated!\nSome features may not be available until you update.")
 
             // Respond to flood so it would know we're using the mod
@@ -126,7 +130,9 @@ class FloodCompat : Mod() {
     /** Applies flood changes */
     private fun enable() {
         if (applied) return
+
         applied = true
+        Core.settings.put("fc-applied", true)
 
         Log.info("Enabling FloodCompat")
         Time.mark()
@@ -294,7 +300,9 @@ class FloodCompat : Mod() {
     /** Reverts flood changes */
     private fun disable() {
         if (!applied) return
+
         applied = false
+        Core.settings.put("fc-applied", false)
 
         Log.info("Disabling FloodCompat")
         Time.mark()
