@@ -4,6 +4,7 @@ import arc.*;
 import arc.graphics.*;
 import arc.graphics.g2d.*;
 import arc.math.*;
+import arc.scene.event.*;
 import arc.scene.ui.*;
 import arc.scene.ui.layout.*;
 import arc.struct.*;
@@ -11,8 +12,9 @@ import arc.util.*;
 import mindustry.*;
 import mindustry.entities.*;
 import mindustry.game.*;
-import mindustry.gen.Icon;
+import mindustry.gen.*;
 import mindustry.type.*;
+import mindustry.ui.*;
 import mindustry.ui.dialogs.*;
 import mindustry.world.*;
 import mindustry.world.blocks.defense.*;
@@ -23,11 +25,6 @@ import static arc.graphics.g2d.Draw.*;
 import static mindustry.content.Blocks.*;
 
 public class EditDrawers{
-    static BaseDialog colorEditor = new BaseDialog("@fc-editor");
-    static Table preview = new Table();
-    static Color newColor;
-    static Block selected;
-
     public static class Data{
         final Effect effect;
         final Color color;
@@ -82,7 +79,7 @@ public class EditDrawers{
             t.bottom().left().button("@fc-editor", Icon.fill, () -> {
                 rebuild();
                 colorEditor.show();
-            }).size(240f, 80f);
+            }).size(180f, 60f);
         });
 
         Vars.content.blocks().each(b -> {
@@ -172,6 +169,15 @@ public class EditDrawers{
         });
     }
 
+    static BaseDialog colorEditor = new BaseDialog("@fc-editor");
+    static ImageButton preview = new ImageButton(Tex.whiteui, Styles.clearNonei){{
+        touchable = Touchable.disabled;
+        resizeImage(128f);
+    }};
+    static Table hex = new Table(), fields = new Table();
+    static Color newColor;
+    static Block selected;
+
     public static void rebuild(){
         colorEditor.reset();
 
@@ -184,67 +190,62 @@ public class EditDrawers{
                     int arr = i;
                     t.button(data.get(i).emoji(), () -> {
                         selected = data.get(arr);
-
                         newColor = dataMap.get(selected).color.cpy();
-                        rebuildPreview();
 
                         rebuild();
                     }).size(160f, 60f);
                 }
             });
 
-            colorEditor.fill(t ->
-                t.bottom().button(Icon.cancel, () -> colorEditor.hide()).size(220f, 40f)
-            );
+            colorEditor.fill(t -> {
+                t.bottom().button(Icon.download, () -> {
+                    String[] buffer = Core.app.getClipboardText().split(":");
+                    if(buffer.length < data.size){
+                        ui.showErrorMessage("@fc-import-fail");
+                        return;
+                    }
+
+                    ui.showConfirm("@fc-import-confirm", () -> {
+                        for(int i = 0; i < data.size; i++)
+                            dataMap.get(data.get(i)).color.set(Color.valueOf(buffer[i]));
+                        ui.showInfoFade("@fc-import-success");
+                    });
+                }).size(220f, 40f);
+                t.bottom().button(Icon.cancel, () -> colorEditor.hide()).size(220f, 40f);
+                t.bottom().button(Icon.copy, () -> {
+                    StringBuilder builder = new StringBuilder();
+                    for(int i = 0; i < data.size; i++)
+                        builder.append(dataMap.get(data.get(i)).color.toString()).append(":");
+
+                    builder.setLength(builder.length() - 1);
+                    Core.app.setClipboardText(builder.toString());
+
+                    ui.showInfoFade("@fc-export-success");
+                }).size(220f, 40f);
+            });
 
             return;
         }
+
+        updateHex();
+        updateFields();
 
         colorEditor.table(t -> {
             t.button(selected.emoji(), () -> {
                 selected = null;
                 rebuild();
             }).row();
-            t.spacer(() -> 240f, () -> 40f).row();
+            t.spacer(() -> 240f, () -> 30f).row();
+            preview.getStyle().imageUpColor = newColor;
             t.add(preview).row();
+            t.add(hex).row();
             t.spacer(() -> 240f, () -> 40f).row();
             t.add(Core.bundle.get("fc-color-text")).row();
-            t.spacer(() -> 240f, () -> 60f).row();
-            t.add(Core.bundle.get("fc-color-red")).row();
-            t.field(newColor.r + "", TextField.TextFieldFilter.floatsOnly, f -> {
-                float fl = Strings.parseFloat(f, 0);
-                newColor.r = Mathf.clamp(fl);
-                rebuildPreview();
-                if(newColor.r != fl)
-                    rebuild();
-            }).size(400f, 60f).row();
-            t.add(Core.bundle.get("fc-color-green")).row();
-            t.field(newColor.g + "", TextField.TextFieldFilter.floatsOnly, f -> {
-                float fl = Strings.parseFloat(f, 0);
-                newColor.g = Mathf.clamp(fl);
-                rebuildPreview();
-                if(newColor.g != fl)
-                    rebuild();
-            }).size(400f, 60f).row();
-            t.add(Core.bundle.get("fc-color-blue")).row();
-            t.field(newColor.b + "", TextField.TextFieldFilter.floatsOnly, f -> {
-                float fl = Strings.parseFloat(f, 0);
-                newColor.b = Mathf.clamp(fl);
-                rebuildPreview();
-                if(newColor.b != fl)
-                    rebuild();
-            }).size(400f, 60f).row();
-            t.add(Core.bundle.get("fc-color-alpha")).row();
-            t.field(newColor.a + "", TextField.TextFieldFilter.floatsOnly, f -> {
-                float fl = Strings.parseFloat(f, 0);
-                newColor.a = Mathf.clamp(fl);
-                rebuildPreview();
-                if(newColor.a != fl)
-                    rebuild();
-            }).size(400f, 60f).row();
+            t.spacer(() -> 240f, () -> 15f).row();
+            t.add(fields);
         });
 
-        colorEditor.fill(t ->{
+        colorEditor.fill(t -> {
             t.bottom().button(Icon.ok, () -> {
                 Core.settings.put("fc-col-" + selected.name, newColor.rgba8888());
                 dataMap.get(selected).color.set(newColor);
@@ -256,25 +257,63 @@ public class EditDrawers{
                 selected = null;
                 rebuild();
             }).size(220f, 40f);
-            t.bottom().button(Icon.download, () ->
+            t.bottom().button(Icon.trash, () ->
                 ui.showConfirm("@fc-confirm", () -> {
                     Data vars = dataMap.get(selected);
 
                     vars.color.set(vars.rgba);
-                    rebuild();
+                    newColor = vars.color.cpy();
 
-                    newColor = dataMap.get(selected).color.cpy();
-                    rebuildPreview();
+                    rebuild();
                 })
             ).size(220f, 40f);
         });
     }
 
-    public static void rebuildPreview(){
-        preview.reset();
+    static void updateHex(){
+        hex.reset();
 
-        preview.fill(t ->
-            t.image(Icon.file, newColor)
-        );
+        hex.field("#" + newColor.toString(), h -> {
+            try{
+                newColor.set(Color.valueOf(h));
+                updateFields();
+            }catch(Throwable ignored){}
+        }).size(192f, 48f);
+    }
+    static void updateFields(){
+        fields.reset();
+
+        fields.add(Core.bundle.get("fc-color-red")).row();
+        fields.field(newColor.r + "", TextField.TextFieldFilter.floatsOnly, f -> {
+            float fl = Strings.parseFloat(f, 0);
+            newColor.r = Mathf.clamp(fl);
+            updateHex();
+            if(newColor.r != fl)
+                updateFields();
+        }).size(400f, 60f).row();
+        fields.add(Core.bundle.get("fc-color-green")).row();
+        fields.field(newColor.g + "", TextField.TextFieldFilter.floatsOnly, f -> {
+            float fl = Strings.parseFloat(f, 0);
+            newColor.g = Mathf.clamp(fl);
+            updateHex();
+            if(newColor.g != fl)
+                updateFields();
+        }).size(400f, 60f).row();
+        fields.add(Core.bundle.get("fc-color-blue")).row();
+        fields.field(newColor.b + "", TextField.TextFieldFilter.floatsOnly, f -> {
+            float fl = Strings.parseFloat(f, 0);
+            newColor.b = Mathf.clamp(fl);
+            updateHex();
+            if(newColor.b != fl)
+                updateFields();
+        }).size(400f, 60f).row();
+        fields.add(Core.bundle.get("fc-color-alpha")).row();
+        fields.field(newColor.a + "", TextField.TextFieldFilter.floatsOnly, f -> {
+            float fl = Strings.parseFloat(f, 0);
+            newColor.a = Mathf.clamp(fl);
+            updateHex();
+            if(newColor.a != fl)
+                updateFields();
+        }).size(400f, 60f).row();
     }
 }
