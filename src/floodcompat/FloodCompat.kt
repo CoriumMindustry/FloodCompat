@@ -102,7 +102,7 @@ class FloodCompat : Mod() {
                 Timer.schedule({
                     allTiles.removeAll(tiles)
                     tiles.clear()
-                }, time.toFloat())
+                }, time)
             )
         }
 

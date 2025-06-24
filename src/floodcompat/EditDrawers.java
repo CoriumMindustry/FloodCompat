@@ -3,6 +3,7 @@ package floodcompat;
 import arc.*;
 import arc.graphics.*;
 import arc.graphics.g2d.*;
+import arc.input.*;
 import arc.math.*;
 import arc.scene.event.*;
 import arc.scene.ui.*;
@@ -64,19 +65,20 @@ public class EditDrawers{
     public static void init(){
         Seq<Block> blocks = dataMap.keys().toSeq();
         for(int i = 0; i < blocks.size; i++){
-            int color = Core.settings.getInt("fc-col-" + blocks.get(i).name, -1);
-            if(color >= 0)
+            int color = Core.settings.getInt("fc-col-" + blocks.get(i).name, 1);
+            if(color != 1)
                 dataMap.get(blocks.get(i)).color.set(color);
         }
 
-        ui.settings.addCategory("@fc-category", t -> {
+        ui.settings.addCategory("@fc-category", Icon.waves, t -> {
             t.checkPref("fc-draw", true);
+            t.checkPref("fc-editor", false);
         });
 
         ui.hudGroup.fill(t -> {
             t.name = "fc-editor-button";
-            t.visibility = () -> Core.input.ctrl();
-            t.bottom().left().button("@fc-editor", Icon.fill, () -> {
+            t.visibility = () -> Core.settings.getBool("fc-editor");
+            t.bottom().left().button("@fc-editor-button", Icon.fill, () -> {
                 rebuild();
                 colorEditor.show();
             }).size(180f, 60f);
@@ -222,6 +224,17 @@ public class EditDrawers{
 
                     ui.showInfoFade("@fc-export-success");
                 }).size(220f, 40f);
+                t.bottom().button(Icon.trash, () ->
+                    ui.showConfirm("@fc-confirm-all", () -> {
+                        Seq<Block> blocks = dataMap.keys().toSeq();
+                        for(Block block : blocks){
+                            Data vars = dataMap.get(block);
+                            vars.color.set(vars.rgba);
+                        }
+
+                        rebuild();
+                    })
+                ).size(220f, 40f);
             });
 
             return;
