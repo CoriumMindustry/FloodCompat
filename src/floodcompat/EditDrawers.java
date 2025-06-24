@@ -198,6 +198,7 @@ public class EditDrawers{
             });
 
             colorEditor.fill(t -> {
+                t.bottom().button(Icon.left, () -> colorEditor.hide()).size(220f, 40f);
                 t.bottom().button(Icon.download, () -> {
                     String[] buffer = Core.app.getClipboardText().split(":");
                     if(buffer.length < data.size){
@@ -211,7 +212,6 @@ public class EditDrawers{
                         ui.showInfoFade("@fc-import-success");
                     });
                 }).size(220f, 40f);
-                t.bottom().button(Icon.cancel, () -> colorEditor.hide()).size(220f, 40f);
                 t.bottom().button(Icon.copy, () -> {
                     StringBuilder builder = new StringBuilder();
                     for(int i = 0; i < data.size; i++)
@@ -246,14 +246,14 @@ public class EditDrawers{
         });
 
         colorEditor.fill(t -> {
+            t.bottom().button(Icon.left, () -> {
+                selected = null;
+                rebuild();
+            }).size(220f, 40f);
             t.bottom().button(Icon.ok, () -> {
                 Core.settings.put("fc-col-" + selected.name, newColor.rgba8888());
                 dataMap.get(selected).color.set(newColor);
 
-                selected = null;
-                rebuild();
-            }).size(220f, 40f);
-            t.bottom().button(Icon.cancel, () -> {
                 selected = null;
                 rebuild();
             }).size(220f, 40f);
