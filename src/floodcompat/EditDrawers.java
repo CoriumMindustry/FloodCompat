@@ -13,7 +13,9 @@ import arc.util.*;
 import mindustry.*;
 import mindustry.entities.*;
 import mindustry.game.*;
+import mindustry.game.EventType.*;
 import mindustry.gen.*;
+import mindustry.input.*;
 import mindustry.type.*;
 import mindustry.ui.*;
 import mindustry.ui.dialogs.*;
@@ -26,6 +28,8 @@ import static arc.graphics.g2d.Draw.*;
 import static mindustry.content.Blocks.*;
 
 public class EditDrawers{
+    static float mult = 1 / Scl.scl();
+
     public static class Data{
         final Effect effect;
         final Color color;
@@ -83,6 +87,21 @@ public class EditDrawers{
                 colorEditor.show();
             }).size(180f, 60f);
         });
+
+        Events.on(ResizeEvent.class, e -> {
+            if(colorEditor.isShown())
+                rebuild();
+        });
+
+        colorEditor.keyDown(key -> {
+            if(key == KeyCode.escape || key == KeyCode.back){
+                if(selected == null)
+                    Core.app.post(colorEditor::hide);
+                else{
+                    selected = null;
+                    rebuild();
+                }
+            }});
 
         Vars.content.blocks().each(b -> {
             if(b instanceof Wall w && dataMap.containsKey(w)){
@@ -183,11 +202,14 @@ public class EditDrawers{
     public static void rebuild(){
         colorEditor.reset();
 
+        int columns = Core.graphics.getWidth() / Scl.scl(160) > 5 ? 5 : 2;
+        float width = Core.graphics.getWidth() / Scl.scl(220) > 4 ? 220f : 130f;
+
         if(selected == null){
             Seq<Block> data = dataMap.keys().toSeq();
             colorEditor.fill(t -> {
                 for(int i = 0; i < data.size; i++){
-                    if(i % 5 == 0) t.row();
+                    if(i % columns == 0) t.row();
 
                     int arr = i;
                     t.button(data.get(i).emoji(), () -> {
@@ -200,7 +222,7 @@ public class EditDrawers{
             });
 
             colorEditor.fill(t -> {
-                t.bottom().button(Icon.left, () -> colorEditor.hide()).size(220f, 40f);
+                t.bottom().button(Icon.left, () -> colorEditor.hide()).size(width, 50f);
                 t.bottom().button(Icon.download, () -> {
                     String[] buffer = Core.app.getClipboardText().split(":");
                     if(buffer.length < data.size){
@@ -213,7 +235,7 @@ public class EditDrawers{
                             dataMap.get(data.get(i)).color.set(Color.valueOf(buffer[i]));
                         ui.showInfoFade("@fc-import-success");
                     });
-                }).size(220f, 40f);
+                }).size(width, 50f);
                 t.bottom().button(Icon.copy, () -> {
                     StringBuilder builder = new StringBuilder();
                     for(int i = 0; i < data.size; i++)
@@ -223,18 +245,19 @@ public class EditDrawers{
                     Core.app.setClipboardText(builder.toString());
 
                     ui.showInfoFade("@fc-export-success");
-                }).size(220f, 40f);
+                }).size(width, 50f);
                 t.bottom().button(Icon.trash, () ->
                     ui.showConfirm("@fc-confirm-all", () -> {
                         Seq<Block> blocks = dataMap.keys().toSeq();
                         for(Block block : blocks){
+                            Core.settings.remove("fc-col-" + block.name);
                             Data vars = dataMap.get(block);
-                            vars.color.set(vars.rgba);
+                            vars.reset();
                         }
 
                         rebuild();
                     })
-                ).size(220f, 40f);
+                ).size(width, 50f);
             });
 
             return;
@@ -262,24 +285,25 @@ public class EditDrawers{
             t.bottom().button(Icon.left, () -> {
                 selected = null;
                 rebuild();
-            }).size(220f, 40f);
+            }).size(width, 50f);
             t.bottom().button(Icon.ok, () -> {
                 Core.settings.put("fc-col-" + selected.name, newColor.rgba8888());
                 dataMap.get(selected).color.set(newColor);
 
                 selected = null;
                 rebuild();
-            }).size(220f, 40f);
+            }).size(width, 50f);
             t.bottom().button(Icon.trash, () ->
                 ui.showConfirm("@fc-confirm", () -> {
-                    Data vars = dataMap.get(selected);
+                    Core.settings.remove("fc-col-" + selected.name);
 
-                    vars.color.set(vars.rgba);
+                    Data vars = dataMap.get(selected);
+                    vars.reset();
                     newColor = vars.color.cpy();
 
                     rebuild();
                 })
-            ).size(220f, 40f);
+            ).size(width, 50f);
         });
     }
 
@@ -291,7 +315,7 @@ public class EditDrawers{
                 newColor.set(Color.valueOf(h));
                 updateFields();
             }catch(Throwable ignored){}
-        }).size(192f, 48f);
+        }).size(192f*mult, 48f*mult);
     }
     static void updateFields(){
         fields.reset();
@@ -303,7 +327,7 @@ public class EditDrawers{
             updateHex();
             if(newColor.r != fl)
                 updateFields();
-        }).size(400f, 60f).row();
+        }).size(400f*mult, 40f*mult).row();
         fields.add(Core.bundle.get("fc-color-green")).row();
         fields.field(newColor.g + "", TextField.TextFieldFilter.floatsOnly, f -> {
             float fl = Strings.parseFloat(f, 0);
@@ -311,7 +335,7 @@ public class EditDrawers{
             updateHex();
             if(newColor.g != fl)
                 updateFields();
-        }).size(400f, 60f).row();
+        }).size(400f*mult, 40f*mult).row();
         fields.add(Core.bundle.get("fc-color-blue")).row();
         fields.field(newColor.b + "", TextField.TextFieldFilter.floatsOnly, f -> {
             float fl = Strings.parseFloat(f, 0);
@@ -319,7 +343,7 @@ public class EditDrawers{
             updateHex();
             if(newColor.b != fl)
                 updateFields();
-        }).size(400f, 60f).row();
+        }).size(400f*mult, 40f*mult).row();
         fields.add(Core.bundle.get("fc-color-alpha")).row();
         fields.field(newColor.a + "", TextField.TextFieldFilter.floatsOnly, f -> {
             float fl = Strings.parseFloat(f, 0);
@@ -327,6 +351,6 @@ public class EditDrawers{
             updateHex();
             if(newColor.a != fl)
                 updateFields();
-        }).size(400f, 60f).row();
+        }).size(400f*mult, 40f*mult).row();
     }
 }
