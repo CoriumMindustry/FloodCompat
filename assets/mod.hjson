@@ -3,7 +3,7 @@ name: "floodcompat"
 author: "io community"
 main: "floodcompat.FloodCompat"
 description: "Reduces desyncs & applies flood changes on join."
-version: "1.93"
+version: "2.0"
 minGameVersion: 147
 java: true
 hidden: true

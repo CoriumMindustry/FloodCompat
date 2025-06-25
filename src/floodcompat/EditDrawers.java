@@ -11,11 +11,11 @@ import arc.scene.ui.layout.*;
 import arc.struct.*;
 import arc.util.*;
 import mindustry.*;
+import mindustry.content.*;
 import mindustry.entities.*;
 import mindustry.game.*;
 import mindustry.game.EventType.*;
 import mindustry.gen.*;
-import mindustry.input.*;
 import mindustry.type.*;
 import mindustry.ui.*;
 import mindustry.ui.dialogs.*;
@@ -28,8 +28,6 @@ import static arc.graphics.g2d.Draw.*;
 import static mindustry.content.Blocks.*;
 
 public class EditDrawers{
-    static float mult = 1 / Scl.scl();
-
     public static class Data{
         final Effect effect;
         final Color color;
@@ -37,11 +35,11 @@ public class EditDrawers{
 
         public Data(Color color){
             this.color = color;
-            this.rgba = color.rgba8888();
+            this.rgba = color.rgba();
 
             effect = new Effect(25, e -> {
                 color(color);
-                randLenVectors(e.id, e.fin(), Mathf.round(12 * color.a), 12f, (x, y, fin, fout) -> {
+                randLenVectors(e.id, e.fin(), Math.min(2, Mathf.round(12 * color.a)), 12f, (x, y, fin, fout) -> {
                     alpha((0.5f - Math.abs(fin - 0.5f)) * 2f);
                     Fill.circle(e.x + x, e.y + y, 3f + fout * 4f);
                 });
@@ -69,12 +67,16 @@ public class EditDrawers{
     public static void init(){
         Seq<Block> blocks = dataMap.keys().toSeq();
         for(int i = 0; i < blocks.size; i++){
-            int color = Core.settings.getInt("fc-col-" + blocks.get(i).name, 1);
-            if(color != 1)
-                dataMap.get(blocks.get(i)).color.set(color);
+            String setting = "fc-col-" + blocks.get(i).name;
+            if(!Core.settings.has(setting)) return;
+
+            dataMap.get(blocks.get(i)).color.set(
+                Core.settings.getInt(setting)
+            );
         }
 
         ui.settings.addCategory("@fc-category", Icon.waves, t -> {
+            t.sliderPref("fc-quality", 0, 0, 2, i -> Core.bundle.get("fc-quality" + i));
             t.checkPref("fc-draw", true);
             t.checkPref("fc-editor", false);
         });
@@ -101,7 +103,8 @@ public class EditDrawers{
                     selected = null;
                     rebuild();
                 }
-            }});
+            }
+        });
 
         Vars.content.blocks().each(b -> {
             if(b instanceof Wall w && dataMap.containsKey(w)){
@@ -110,9 +113,10 @@ public class EditDrawers{
 
                     public boolean isFlood(){
                         return(
-                            team == Team.blue
+                            team.id == Team.blue.id
                             && Core.settings.getBool("fc-applied")
-                            && Core.settings.getBool("fc-draw")
+                            && (Core.settings.getBool("fc-draw")
+                            || Core.settings.getInt("fc-quality") == 2)
                         );
                     }
 
@@ -177,12 +181,16 @@ public class EditDrawers{
                         if(block.hasLiquids && state.rules.damageExplosions)
                             liquids.each(this::splashLiquid);
 
-                        boolean isFlood = isFlood();
+                        boolean isFlood = isFlood(), noEffects = Core.settings.getInt("fc-quality") > 0;
 
                         //cap explosiveness so fluid tanks/vaults don't instakill units
-                        Damage.dynamicExplosion(x, y, flammability * block.flammabilityScale, explosiveness * 3.5f * block.explosivenessScale, power, tilesize * block.size / 2f, state.rules.damageExplosions, !isFlood, null, isFlood ? flood.effect : block.destroyEffect, block.baseShake);
+                        Damage.dynamicExplosion(
+                            x, y, flammability * block.flammabilityScale, explosiveness * 3.5f * block.explosivenessScale, power, tilesize * block.size / 2f, state.rules.damageExplosions, !isFlood, null,
+                            noEffects ? Fx.none : isFlood ? flood.effect : block.destroyEffect,
+                            isFlood ? 0f : block.baseShake
+                        );
 
-                        if(!isFlood && block.createRubble && !floor().solid && !floor().isLiquid)
+                        if(!isFlood && !noEffects && block.createRubble && !floor().solid && !floor().isLiquid)
                             Effect.rubble(x, y, block.size);
                     }
                 };
@@ -190,14 +198,23 @@ public class EditDrawers{
         });
     }
 
+    // the main "window" for the editor
     static BaseDialog colorEditor = new BaseDialog("@fc-editor");
+    // a cheesy way to preview the color
     static ImageButton preview = new ImageButton(Tex.whiteui, Styles.clearNonei){{
         touchable = Touchable.disabled;
         resizeImage(128f);
     }};
+    // variable field tables, separated from main for easier updates
     static Table hex = new Table(), fields = new Table();
+    // a reusable instace of the stringbuilder
+    static StringBuilder uiBuilder = new StringBuilder();
+    // instance for the preview color
     static Color newColor;
+    // selected block pointer
     static Block selected;
+    // ui scale
+    static float mult = 1 / Scl.scl();
 
     public static void rebuild(){
         colorEditor.reset();
@@ -237,21 +254,20 @@ public class EditDrawers{
                     });
                 }).size(width, 50f);
                 t.bottom().button(Icon.copy, () -> {
-                    StringBuilder builder = new StringBuilder();
                     for(int i = 0; i < data.size; i++)
-                        builder.append(dataMap.get(data.get(i)).color.toString()).append(":");
+                        uiBuilder.append(dataMap.get(data.get(i)).color.toString()).append(":");
 
-                    builder.setLength(builder.length() - 1);
-                    Core.app.setClipboardText(builder.toString());
+                    uiBuilder.setLength(uiBuilder.length() - 1);
+                    Core.app.setClipboardText(uiBuilder.toString());
 
+                    uiBuilder.setLength(0);
                     ui.showInfoFade("@fc-export-success");
                 }).size(width, 50f);
                 t.bottom().button(Icon.trash, () ->
                     ui.showConfirm("@fc-confirm-all", () -> {
-                        Seq<Block> blocks = dataMap.keys().toSeq();
-                        for(Block block : blocks){
-                            Core.settings.remove("fc-col-" + block.name);
-                            Data vars = dataMap.get(block);
+                        for(int i = 0; i < data.size; i++){
+                            Core.settings.remove("fc-col-" + data.get(i).name);
+                            Data vars = dataMap.get(data.get(i));
                             vars.reset();
                         }
 
@@ -287,10 +303,12 @@ public class EditDrawers{
                 rebuild();
             }).size(width, 50f);
             t.bottom().button(Icon.ok, () -> {
-                Core.settings.put("fc-col-" + selected.name, newColor.rgba8888());
-                dataMap.get(selected).color.set(newColor);
+                if(dataMap.get(selected).rgba != newColor.rgba())
+                    Core.settings.put("fc-col-" + selected.name, newColor.rgba());
 
+                dataMap.get(selected).color.set(newColor);
                 selected = null;
+
                 rebuild();
             }).size(width, 50f);
             t.bottom().button(Icon.trash, () ->
@@ -299,8 +317,8 @@ public class EditDrawers{
 
                     Data vars = dataMap.get(selected);
                     vars.reset();
+                    
                     newColor = vars.color.cpy();
-
                     rebuild();
                 })
             ).size(width, 50f);
