@@ -249,7 +249,7 @@ public class EditDrawers{
 
                     ui.showConfirm("@fc-import-confirm", () -> {
                         for(int i = 0; i < data.size; i++)
-                            dataMap.get(data.get(i)).color.set(Color.valueOf(buffer[i]));
+                            Core.settings.put("fc-col-" + data.get(i).name, dataMap.get(data.get(i)).color.set(Color.valueOf(buffer[i])).rgba());
                         ui.showInfoFade("@fc-import-success");
                     });
                 }).size(width, 50f);
