@@ -68,7 +68,7 @@ public class EditDrawers{
         Seq<Block> blocks = dataMap.keys().toSeq();
         for(int i = 0; i < blocks.size; i++){
             String setting = "fc-col-" + blocks.get(i).name;
-            if(!Core.settings.has(setting)) return;
+            if(!Core.settings.has(setting)) continue;
 
             dataMap.get(blocks.get(i)).color.set(
                 Core.settings.getInt(setting)
