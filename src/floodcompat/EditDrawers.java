@@ -5,7 +5,7 @@ import arc.graphics.*;
 import arc.graphics.g2d.*;
 import arc.input.*;
 import arc.math.*;
-import arc.scene.event.*;
+import arc.scene.style.*;
 import arc.scene.ui.*;
 import arc.scene.ui.layout.*;
 import arc.struct.*;
@@ -17,7 +17,6 @@ import mindustry.game.*;
 import mindustry.game.EventType.*;
 import mindustry.gen.*;
 import mindustry.type.*;
-import mindustry.ui.*;
 import mindustry.ui.dialogs.*;
 import mindustry.world.*;
 import mindustry.world.blocks.defense.*;
@@ -79,6 +78,7 @@ public class EditDrawers{
             t.sliderPref("fc-quality", 0, 0, 2, i -> Core.bundle.get("fc-quality" + i));
             t.checkPref("fc-draw", true);
             t.checkPref("fc-editor", false);
+            t.checkPref("fc-sliders", true);
         });
 
         ui.hudGroup.fill(t -> {
@@ -87,7 +87,7 @@ public class EditDrawers{
             t.bottom().left().button("@fc-editor-button", Icon.fill, () -> {
                 rebuild();
                 colorEditor.show();
-            }).size(180f, 60f);
+            }).size(uiSize, 60f);
         });
 
         Events.on(ResizeEvent.class, e -> {
@@ -199,22 +199,48 @@ public class EditDrawers{
     }
 
     // the main "window" for the editor
-    static BaseDialog colorEditor = new BaseDialog("@fc-editor");
-    // a cheesy way to preview the color
-    static ImageButton preview = new ImageButton(Tex.whiteui, Styles.clearNonei){{
-        touchable = Touchable.disabled;
-        resizeImage(128f);
-    }};
-    // variable field tables, separated from main for easier updates
-    static Table hex = new Table(), fields = new Table();
+    final static BaseDialog colorEditor = new BaseDialog("@fc-editor");
+    // secondary "window" for save profiles
+    final static BaseDialog saves = new BaseDialog("@fc-saves");
+
+    // variable field table, separated from main for easier updates
+    final static Table fields = new Table(), hex = new Table();
     // a reusable instace of the stringbuilder
-    static StringBuilder uiBuilder = new StringBuilder();
+    final static StringBuilder uiBuilder = new StringBuilder();
     // instance for the preview color
-    static Color newColor;
-    // selected block pointer
+    final static Color newColor = new Color();
+    // selected block reference
     static Block selected;
+    // random string cache
+    static String save;
+    
+    // save cache
+    final static Seq<String> saveNames = new Seq<>();
+    final static IntSeq saveData = new IntSeq();
+
     // ui scale
-    static float mult = 1 / Scl.scl();
+    final static float mult = 1 / Scl.scl(),
+        sliderSize = 500f * mult,
+        fieldSize = 400f * mult,
+        spacerSize = 240f * mult,
+        uiSize = 180f * mult,
+        uiHeight = 40f * mult,
+        lowHeight = uiHeight / 2f;
+
+    // what the fuck
+    final static Image preview = new Image(
+        new TextureRegionDrawable(
+            new TextureRegion(
+                new Texture(
+                    new Pixmap(384, 128){{
+                        fill(Color.white);
+                    }}
+                )
+            )
+        )
+    ){{
+        setScale(mult);
+    }};
 
     public static void rebuild(){
         colorEditor.reset();
@@ -231,7 +257,7 @@ public class EditDrawers{
                     int arr = i;
                     t.button(data.get(i).emoji(), () -> {
                         selected = data.get(arr);
-                        newColor = dataMap.get(selected).color.cpy();
+                        newColor.set(dataMap.get(selected).color);
 
                         rebuild();
                     }).size(160f, 60f);
@@ -239,7 +265,114 @@ public class EditDrawers{
             });
 
             colorEditor.fill(t -> {
-                t.bottom().button(Icon.left, () -> colorEditor.hide()).size(width, 50f);
+                t.top().left().button("@save", () -> {
+                    Table table = new Table();
+                    save = "palette";
+
+                    table.add(Strings.format("@: @", Core.bundle.get("fc-save-name"), save));
+
+                    saves.reset();
+                    saves.fill(tb ->
+                        tb.center().bottom().marginBottom(55f).button("@save", () -> {
+                            saveNames.addUnique(save);
+                            Core.settings.putJson("fc-saveNames", String.class, saveNames);
+
+                            saveData.clear();
+                            for(int i = 0; i < data.size; i++)
+                                saveData.add(dataMap.get(data.get(i)).color.rgba());
+                            Core.settings.putJson("fc-palette-" + save, Integer.class, saveData);
+
+                            ui.showInfoFade(Strings.format("@ @", Core.bundle.get("fc-saved"), save));
+                            saves.hide();
+                        }).width(uiSize)
+                    );
+
+                    saves.row();
+                    saves.fill(tb -> {
+                        tb.center().add("@fc-enter-name").row();
+                        tb.field("", in -> {
+                            String name = in.replaceAll("[^a-zA-Z0-9]", "");
+                            save = name.isEmpty() ? "palette" : name;
+
+                            table.reset();
+                            table.add(Strings.format("@: @", Core.bundle.get("fc-save-name"), save)).row();
+                        }).width(380f).row();
+                        if(saveNames.contains(save))
+                            table.add("@fc-overwrite").color(Color.scarlet).row();
+                        tb.add(table).row();
+                    });
+
+                    saves.fill(tb -> tb.center().bottom().button("@back", Icon.left, saves::hide).width(uiSize));
+                    saves.show();
+                }).width(uiSize).row();
+                t.top().left().button("@load", () -> {
+                    saves.reset();
+
+                    saves.fill(tb -> {
+                        if(saveNames.isEmpty()){
+                            tb.center().add("@fc-no-saves").width(spacerSize);
+                        }else{
+                            for(int i = 0; i < saveNames.size; i++){
+                                String string = saveNames.get(i);
+                                if(string.isEmpty()) continue;
+
+                                tb.button(string, () -> {
+                                    saveData.clear();
+                                    saveData.addAll(
+                                        Core.settings.getJson("fc-palette-" + string, IntSeq.class, Integer.class, IntSeq::new)
+                                    );
+
+                                    for(int s = 0; s < data.size; s++){
+                                        Core.settings.put("fc-col-" + data.get(s).name, saveData.get(s));
+                                        dataMap.get(data.get(s)).color.set(saveData.get(s));
+                                    }
+
+                                    rebuild();
+
+                                    ui.showInfoFade(Strings.format("@ @", Core.bundle.get("fc-loaded"), string));
+                                    saves.hide();
+                                }).width(50f + (10f * string.length()));
+                            }
+                        }
+                    });
+
+                    saves.fill(tb -> tb.center().top().marginTop(40f).add("@fc-select").width(220f));
+                    saves.fill(tb -> tb.center().bottom().button("@back", Icon.left, saves::hide).width(uiSize));
+
+                    saves.show();
+                }).width(uiSize).row();
+                t.top().left().button("@fc-remove", () -> {
+                    saves.reset();
+
+                    saves.fill(tb -> {
+                        if(saveNames.isEmpty())
+                            tb.center().add("@fc-no-saves").width(220f);
+                        else{
+                            for(var string : saveNames){
+                                if(string.isEmpty()) continue;
+
+                                tb.button(string, () -> {
+                                    saveNames.remove(string);
+                                    Core.settings.putJson("fc-saveNames", String.class, saveNames);
+
+                                    Core.settings.remove("fc-palette-" + string);
+
+                                    ui.showInfoFade("@fc-removed");
+                                    saves.hide();
+                                }).width(50f + (10f * string.length()));
+                            }
+                        }
+                    });
+
+                    saves.fill(tb -> tb.center().top().marginTop(40f).add("@fc-select").width(220f));
+                    saves.fill(tb -> tb.center().bottom().button("@back", Icon.left, saves::hide).width(uiSize));
+
+                    saves.show();
+                }).width(uiSize).row();
+            });
+
+            colorEditor.fill(t -> {
+                t.bottom().button(Icon.left, colorEditor::hide).size(width, 50f);
                 t.bottom().button(Icon.download, () -> {
                     String[] buffer = Core.app.getClipboardText().split(":");
                     if(buffer.length < data.size){
@@ -279,21 +412,20 @@ public class EditDrawers{
             return;
         }
 
-        updateHex();
         updateFields();
+        updatePreview();
 
         colorEditor.table(t -> {
-            t.button(selected.emoji(), () -> {
-                selected = null;
-                rebuild();
-            }).row();
-            t.spacer(() -> 240f, () -> 30f).row();
-            preview.getStyle().imageUpColor = newColor;
             t.add(preview).row();
+            t.spacer(() -> spacerSize, () -> uiHeight).row();
             t.add(hex).row();
-            t.spacer(() -> 240f, () -> 40f).row();
-            t.add(Core.bundle.get("fc-color-text")).row();
-            t.spacer(() -> 240f, () -> 15f).row();
+            t.spacer(() -> spacerSize, () -> uiHeight).row();
+            t.add(
+                Core.bundle.get(
+                    Core.settings.getBool("fc-sliders") ? "fc-color-sliders" : "fc-color-fields"
+                )
+            ).row();
+            t.spacer(() -> spacerSize, () -> lowHeight).row();
             t.add(fields);
         });
 
@@ -318,57 +450,101 @@ public class EditDrawers{
                     Data vars = dataMap.get(selected);
                     vars.reset();
                     
-                    newColor = vars.color.cpy();
+                    newColor.set(vars.color);
                     rebuild();
                 })
             ).size(width, 50f);
         });
     }
-
-    static void updateHex(){
-        hex.reset();
-
-        hex.field("#" + newColor.toString(), h -> {
-            try{
-                newColor.set(Color.valueOf(h));
-                updateFields();
-            }catch(Throwable ignored){}
-        }).size(192f*mult, 48f*mult);
-    }
     static void updateFields(){
         fields.reset();
 
+        boolean sliders = Core.settings.getBool("fc-sliders");
+
         fields.add(Core.bundle.get("fc-color-red")).row();
-        fields.field(newColor.r + "", TextField.TextFieldFilter.floatsOnly, f -> {
-            float fl = Strings.parseFloat(f, 0);
-            newColor.r = Mathf.clamp(fl);
-            updateHex();
-            if(newColor.r != fl)
-                updateFields();
-        }).size(400f*mult, 40f*mult).row();
+        if(sliders){
+            fields.slider(0f, 1f, 0.001f, newColor.r, f -> {
+                newColor.r = f;
+
+                updatePreview();
+            }).size(sliderSize, uiHeight).row();
+        }else{
+            fields.field(newColor.r + "", TextField.TextFieldFilter.floatsOnly, f -> {
+                float fl = Strings.parseFloat(f, 0);
+                newColor.r = Mathf.clamp(fl);
+
+                updatePreview();
+                if(newColor.r != fl)
+                    updateFields();
+            }).size(fieldSize, uiHeight).row();
+        }
+
         fields.add(Core.bundle.get("fc-color-green")).row();
-        fields.field(newColor.g + "", TextField.TextFieldFilter.floatsOnly, f -> {
-            float fl = Strings.parseFloat(f, 0);
-            newColor.g = Mathf.clamp(fl);
-            updateHex();
-            if(newColor.g != fl)
-                updateFields();
-        }).size(400f*mult, 40f*mult).row();
+        if(sliders){
+            fields.slider(0f, 1f, 0.001f, newColor.g, f -> {
+                newColor.g = f;
+
+                updatePreview();
+            }).size(sliderSize, uiHeight).row();
+        }else{
+            fields.field(newColor.g + "", TextField.TextFieldFilter.floatsOnly, f -> {
+                float fl = Strings.parseFloat(f, 0);
+                newColor.g = Mathf.clamp(fl);
+
+                updatePreview();
+                if(newColor.g != fl)
+                    updateFields();
+            }).size(fieldSize, uiHeight).row();
+        }
+
         fields.add(Core.bundle.get("fc-color-blue")).row();
-        fields.field(newColor.b + "", TextField.TextFieldFilter.floatsOnly, f -> {
-            float fl = Strings.parseFloat(f, 0);
-            newColor.b = Mathf.clamp(fl);
-            updateHex();
-            if(newColor.b != fl)
-                updateFields();
-        }).size(400f*mult, 40f*mult).row();
+        if(sliders){
+            fields.slider(0f, 1f, 0.001f, newColor.b, f -> {
+                newColor.b = f;
+
+                updatePreview();
+            }).size(sliderSize, uiHeight).row();
+        }else{
+            fields.field(newColor.b + "", TextField.TextFieldFilter.floatsOnly, f -> {
+                float fl = Strings.parseFloat(f, 0);
+                newColor.b = Mathf.clamp(fl);
+
+                updatePreview();
+                if(newColor.b != fl)
+                    updateFields();
+            }).size(fieldSize, uiHeight).row();
+        }
+
         fields.add(Core.bundle.get("fc-color-alpha")).row();
-        fields.field(newColor.a + "", TextField.TextFieldFilter.floatsOnly, f -> {
-            float fl = Strings.parseFloat(f, 0);
-            newColor.a = Mathf.clamp(fl);
-            updateHex();
-            if(newColor.a != fl)
+        if(sliders){
+            fields.slider(0f, 1f, 0.001f, newColor.a, f -> {
+                newColor.a = f;
+
+                updatePreview();
+            }).size(sliderSize, uiHeight).row();
+        }else{
+            fields.field(newColor.a + "", TextField.TextFieldFilter.floatsOnly, f -> {
+                float fl = Strings.parseFloat(f, 0);
+                newColor.a = Mathf.clamp(fl);
+
+                updatePreview();
+                if(newColor.a != fl)
+                    updateFields();
+            }).size(fieldSize, uiHeight).row();
+        }
+    }
+
+    static void updatePreview(){
+        preview.setColor(newColor);
+
+        hex.reset();
+        hex.field("#" + newColor.toString(), h -> {
+            try{
+                newColor.set(Color.valueOf(h));
+                preview.setColor(newColor);
+
                 updateFields();
-        }).size(400f*mult, 40f*mult).row();
+            }catch(Throwable ignored){}
+        }).size(spacerSize, uiHeight);
     }
 }
