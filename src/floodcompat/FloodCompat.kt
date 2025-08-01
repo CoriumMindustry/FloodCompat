@@ -1,10 +1,12 @@
 package floodcompat
 
 import arc.*
+import arc.func.*
 import arc.math.*
 import arc.math.geom.*
 import arc.struct.*
 import arc.util.*
+import arc.util.serialization.*
 import mindustry.Vars.*
 import mindustry.ai.*
 import mindustry.content.*
@@ -30,6 +32,10 @@ class FloodCompat : Mod() {
 
     /** Used to prevent flood from applying twice */
     private var applied = false
+    /** Time of the last version fetch, in millis */
+    private var lastFetch = 0L
+    /** Whether the mod's up to date */
+    private var newest = false
 
     override fun init() {
         Log.info("Flood Compatibility loaded!")
@@ -46,14 +52,47 @@ class FloodCompat : Mod() {
         if (!state.isMenu) onWorldLoad() // Mod was initialized after loading a world (realistically just foo's downloading the mod at runtime)
 
         // ignore this packet if stuff was already applied, probably sent twice due to us asking the server
-        netClient.addBinaryPacketHandler("flood-v") { bytes: ByteArray ->
+        netClient.addBinaryPacketHandler("flood") {
             if (applied) return@addBinaryPacketHandler
 
             Log.debug("Flood responded")
             enable()
 
-            if (ByteBuffer.wrap(bytes).getFloat() > Strings.parseFloat(mods.getMod("floodcompat").meta.version, -1f))
-                ui.chatfrag.addMessage("[scarlet]Your FloodCompat is outdated!\nSome features may not be available until you update.")
+            // fetch at most once every 10 minutes
+            if (Time.timeSinceMillis(lastFetch) >= 600000) {
+                lastFetch = Time.millis()
+
+                // new version checking code, no longer limited to float numbers
+                Http.get("$ghApi/repos/mindustry-antigrief/FloodCompat/releases", ConsT { response: Http.HttpResponse? ->
+                    if (response == null) {
+                        versionFail()
+                        return@ConsT
+                    }
+
+                    val vars = Jval.read(response.getResultAsString()).asArray().get(0).getString("tag_name").replace("[^0-9.]".toRegex(), "").split("\\.".toRegex())
+                    if (vars.isEmpty()) {
+                        versionFail()
+                        return@ConsT
+                    }
+
+                    val meta = mods.getMod(this.javaClass).meta.version
+                    if (meta != null) {
+                        if (!vars.equals(meta.replace("[^0-9.]".toRegex(), ""))) {
+                            newest = false
+                            ui.chatfrag.addMessage(Strings.format("[scarlet]@", Core.bundle.get("fc-outdated")))
+
+                            return@ConsT
+                        }
+
+                        newest = true
+                        ui.showInfoFade(Strings.format("[lime]@", Core.bundle.get("fc-newest")), 5f)
+
+                        return@ConsT
+                    }
+
+                    versionFail()
+                })
+            } else if (!newest) ui.chatfrag.addMessage(Strings.format("[scarlet]@", Core.bundle.get("fc-outdated")))
 
             // Respond to flood so it would know we're using the mod
             Core.app.post( { Call.serverBinaryPacketReliable("flood-rs", ByteArray(0)) } )
@@ -114,6 +153,11 @@ class FloodCompat : Mod() {
                     it.remove()
             }
         }, 0f, 5f)
+    }
+
+    private fun versionFail(){
+        newest = true
+        ui.chatfrag.addMessage(Strings.format("[scarlet]@", Core.bundle.get("fc-fetch-fail")))
     }
 
     /** This is a function so that foo's can call it when downloading the mod */
@@ -183,13 +227,12 @@ class FloodCompat : Mod() {
             ) }.toTypedArray(),
 
             // Units
-            pulsar, "commands", Seq.with(UnitCommand.moveCommand, UnitCommand.boostCommand, UnitCommand.mineCommand),
-            quasar, "commands", Seq.with(UnitCommand.moveCommand, UnitCommand.boostCommand, UnitCommand.mineCommand),
-            vela, "commands", Seq.with(UnitCommand.moveCommand, UnitCommand.boostCommand, UnitCommand.mineCommand),
+            vela, "commands", vela.commands.copy().add(UnitCommand.mineCommand),
             vela, "mineTier", 4,
             vela, "mineSpeed", 10.5F,
-            pulsar, "abilities", Seq<Ability>(0), // pulsar.abilities.clear()
-            bryde, "abilities", Seq<Ability>(0), // pulsar.abilities.clear()
+            pulsar, "abilities", Seq<Ability>(0),
+            bryde, "abilities", Seq<Ability>(0),
+            oct, "abilities", Seq<Ability>(0),
             *quad.weapons.flatMap { Seq.with(
                 it, "bullet.damage", 100,
                 it, "bullet.splashDamage", 250,

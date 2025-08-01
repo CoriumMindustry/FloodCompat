@@ -2,8 +2,8 @@ displayName: "[cyan]FloodCompat"
 name: "floodcompat"
 author: "io community"
 main: "floodcompat.FloodCompat"
-description: "Reduces desyncs & applies flood changes on join."
-version: "2.2"
+description: "Improves your experience on the official [accent]io[] [blue] Flood[] server."
+version: "2.2.1"
 minGameVersion: 147
 java: true
 hidden: true
