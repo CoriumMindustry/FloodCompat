@@ -69,15 +69,15 @@ class FloodCompat : Mod() {
                         return@ConsT
                     }
 
-                    val vars = Jval.read(response.getResultAsString()).asArray().get(0).getString("tag_name").replace("[^0-9.]".toRegex(), "").split("\\.".toRegex())
+                    val vars = Jval.read(response.getResultAsString()).asArray().get(0).getString("tag_name").replace("[^0-9.]".toRegex(), "")
                     if (vars.isEmpty()) {
                         versionFail()
                         return@ConsT
                     }
 
-                    val meta = mods.getMod(this.javaClass).meta.version
-                    if (meta != null) {
-                        if (!vars.equals(meta.replace("[^0-9.]".toRegex(), ""))) {
+                    val mod = mods.getMod(this.javaClass)
+                    if (mod != null) {
+                        if (vars != mod.meta.version.replace("[^0-9.]".toRegex(), "")) {
                             newest = false
                             ui.chatfrag.addMessage(Strings.format("[scarlet]@", Core.bundle.get("fc-outdated")))
 
