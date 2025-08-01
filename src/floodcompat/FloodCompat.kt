@@ -232,7 +232,7 @@ class FloodCompat : Mod() {
             vela, "mineSpeed", 10.5F,
             pulsar, "abilities", Seq<Ability>(0),
             bryde, "abilities", Seq<Ability>(0),
-            oct, "abilities", Seq<Ability>(0),
+            oct, "abilities", oct.abilities.copy().removeAll { it !is ForceFieldAbility },
             *quad.weapons.flatMap { Seq.with(
                 it, "bullet.damage", 100,
                 it, "bullet.splashDamage", 250,
