@@ -26,6 +26,8 @@ import static arc.graphics.g2d.Draw.*;
 import static mindustry.content.Blocks.*;
 
 public class EditDrawers{
+    private static boolean draw = false, noEffects = false;
+
     public static class Data{
         final Effect effect;
         final Color color;
@@ -109,6 +111,20 @@ public class EditDrawers{
             }
         });
 
+        Events.run(Trigger.preDraw, () -> {
+            if(Core.settings.getBool("fc-applied")){
+                draw = (
+                    (Core.settings.getBool("fc-draw")
+                    || Core.settings.getInt("fc-quality") == 2)
+                );
+                noEffects = Core.settings.getInt("fc-quality") > 0;
+
+                return;
+            }
+
+            draw = false;
+        });
+
         Vars.content.blocks().each(b -> {
             if(b instanceof Wall w && dataMap.containsKey(w)){
                 w.buildType = () -> w.new WallBuild(){
@@ -116,10 +132,8 @@ public class EditDrawers{
 
                     public boolean isFlood(){
                         return(
-                            team.id == Team.blue.id
-                            && Core.settings.getBool("fc-applied")
-                            && (Core.settings.getBool("fc-draw")
-                            || Core.settings.getInt("fc-quality") == 2)
+                            draw
+                            && team.id == Team.blue.id
                         );
                     }
 
@@ -128,6 +142,7 @@ public class EditDrawers{
                         if(isFlood()){
                             Draw.color(flood.color);
                             Fill.rect(x, y, w.region.width * w.region.scl() * xscl, w.region.height * w.region.scl() * xscl);
+                            Draw.reset();
 
                             return;
                         }
@@ -184,16 +199,14 @@ public class EditDrawers{
                         if(block.hasLiquids && state.rules.damageExplosions)
                             liquids.each(this::splashLiquid);
 
-                        boolean isFlood = isFlood(), noEffects = Core.settings.getInt("fc-quality") > 0;
-
                         //cap explosiveness so fluid tanks/vaults don't instakill units
                         Damage.dynamicExplosion(
-                            x, y, flammability * block.flammabilityScale, explosiveness * 3.5f * block.explosivenessScale, power, tilesize * block.size / 2f, state.rules.damageExplosions, !isFlood, null,
-                            noEffects ? Fx.none : isFlood ? flood.effect : block.destroyEffect,
-                            isFlood ? 0f : block.baseShake
+                            x, y, flammability * block.flammabilityScale, explosiveness * 3.5f * block.explosivenessScale, power, tilesize * block.size / 2f, state.rules.damageExplosions, !isFlood(), null,
+                            noEffects ? Fx.none : isFlood() ? flood.effect : block.destroyEffect,
+                            isFlood() ? 0f : block.baseShake
                         );
 
-                        if(!isFlood && !noEffects && block.createRubble && !floor().solid && !floor().isLiquid)
+                        if(!isFlood() && !noEffects && block.createRubble && !floor().solid && !floor().isLiquid)
                             Effect.rubble(x, y, block.size);
                     }
                 };
@@ -229,8 +242,7 @@ public class EditDrawers{
         uiSize = 180f * mult,
         buttonHeight = 60f * mult,
         uiHeight = 40f * mult,
-        lowHeight = uiHeight / 2f,
-        unset = Float.NEGATIVE_INFINITY;
+        lowHeight = uiHeight / 2f;
 
     final static Image preview = new Image(
         new Texture(
@@ -340,7 +352,7 @@ public class EditDrawers{
                                     saves.hide();
                                 }).width(50f + (10f * string.length()));
 
-                                if(i % columns == 0){
+                                if(i != 0 && i % columns == 0){
                                     tb.add(worker).row();
                                     worker = new Table();
                                 }
