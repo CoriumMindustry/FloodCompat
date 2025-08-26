@@ -88,7 +88,7 @@ public class EditDrawers{
 
         ui.hudGroup.fill(t -> {
             t.name = "fc-editor-button";
-            t.visibility = () -> Core.settings.getBool("fc-editor");
+            t.visibility = () -> Core.settings.getBool("fc-editor") && Core.settings.getBool("fc-applied");
             t.bottom().left().marginBottom(mobile ? buttonHeight : 0f).button("@fc-editor-button", Icon.fill, () -> {
                 rebuild();
                 colorEditor.show();
@@ -239,8 +239,8 @@ public class EditDrawers{
         sliderSize = 500f * mult,
         fieldSize = 400f * mult,
         spacerSize = 240f * mult,
-        uiSize = 180f * mult,
-        buttonHeight = 60f * mult,
+        uiSize = 180f,
+        buttonHeight = 60f,
         uiHeight = 40f * mult,
         lowHeight = uiHeight / 2f;
 
