@@ -1,0 +1,51 @@
+#editor info
+fc-save-name = Derzeitiger Paletten name
+fc-overwrite = Palette existiert bereits, fortschreiten wird sie überschreiben!
+fc-enter-name = Gebe Paletten namen ein
+fc-select = Bitte wähle eine Palette aus.
+fc-color-fields = Farbstärke für jede Farbe, 0-1
+fc-color-sliders = Nutze Schieberegler zum bearbeiten.
+fc-no-saves = Keine Paletten gefunden...
+fc-color-red = Rot
+fc-color-green = Grün
+fc-color-blue = Blau
+fc-color-alpha = Alpha
+
+#buttons
+fc-editor-button = Flood Bearbeiter
+fc-remove = Entfernen
+
+#settings
+fc-category = FloodCompat
+setting.fc-draw.name = Eigene Flood malen
+setting.fc-draw.description = Eigene effekte & farben, anstatt normaler Mauern zu nutzen.
+setting.fc-quality.name = Qualitäts Präferenzen
+settings.fc-quality.description = Verwaltet den graphischen aspekt des mods\nHohe Leistung, deaktiviert alle effekte, zwanhs-aktiviert eigenes Laden, Anticreeper inklusive!\nEine höhere Qualität ist empfohlen, fals möglich.
+setting.fc-editor.name = Farben bearbeiter
+setting.fc-editor.description = Aktiviert den im-spiel flood farben bearbeiter.
+setting.fc-sliders.name = Verwende Schieberegler
+settings.fc-sliders.description = Ob Schieberegler anstatt von Feldern im flood farben bearbeiter verwendet werden sollen.
+
+fc-quality0 = Hohe Qualität
+fc-quality1 = Ausgewogen
+fc-quality2 = Hohe Leistung
+
+#dialogs
+fc-confirm = Kanal werte zurücksetzen?
+fc-confirm-all = Farbwerte zurücksetzen?
+fc-import-fail = Der Import der Palette ist fehlgeschlagen!\n Dem String fehlen Dateien!
+fc-import-confirm = Palette auf der Zwischenablage importieren?
+fc-import-success = Palette erfolgreich importiert!
+fc-export-success = Palette in die Zwischenablage kopiert.
+fc-saved = Palette gespeichert als
+fc-loaded = Palette geladen
+fc-removed = Palette gelöscht
+
+#other stuff
+fc-editor = Flood Bearbeiter
+fc-saves = Paletten Bearbeiter
+
+#info
+fc-outdated = Dein FloodCompat ist veraltet!\n Manche features gibt es eventuell nicht, bis du aktualisierst.
+fc-newest = FloodCompat ist aktuell!\nViel spaß auf io Flood!
+fc-fetch-failed = Das Laden der neusten informationen ist schief gelaufen...\nDer mod ist wahrscheinlich aktuell!
