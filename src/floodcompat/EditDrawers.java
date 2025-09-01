@@ -236,8 +236,8 @@ public class EditDrawers{
 
     // ui scale
     final static float mult = 1 / Scl.scl(),
-        sliderSize = 500f * mult,
-        fieldSize = 400f * mult,
+        sliderSize = 500f,
+        fieldSize = 400f,
         spacerSize = 240f * mult,
         uiSize = 180f,
         buttonHeight = 60f,
@@ -246,7 +246,7 @@ public class EditDrawers{
 
     final static Image preview = new Image(
         new Texture(
-            new Pixmap(384, 128){{
+            new Pixmap(384, 384){{
                 fill(Color.white);
             }}
         )
@@ -455,7 +455,6 @@ public class EditDrawers{
 
         colorEditor.table(t -> {
             t.add(preview).row();
-            t.spacer(() -> spacerSize, () -> uiHeight).row();
             t.add(hex).row();
             t.spacer(() -> spacerSize, () -> uiHeight).row();
             t.add(
