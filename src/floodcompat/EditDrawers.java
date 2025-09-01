@@ -241,7 +241,7 @@ public class EditDrawers{
         spacerSize = 240f * mult,
         uiSize = 180f,
         buttonHeight = 60f,
-        uiHeight = 40f * mult,
+        uiHeight = 40f,
         lowHeight = uiHeight / 2f;
 
     final static Image preview = new Image(
@@ -388,7 +388,7 @@ public class EditDrawers{
                                     saves.hide();
                                 }).width(50f + (10f * string.length()));
 
-                                if(i % columns == 0){
+                                if(i != 0 && i % columns == 0){
                                     tb.add(worker).row();
                                     worker = new Table();
                                 }
