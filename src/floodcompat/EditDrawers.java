@@ -407,12 +407,13 @@ public class EditDrawers{
 
                 t.button(Icon.left, colorEditor::hide).size(width, 50f);
                 t.button(Icon.download, () -> {
-                    if(Core.app.getClipboardText().isEmpty()){
+                    String codes = Core.app.getClipboardText();
+                    if(codes == null || codes.isEmpty()){
                         ui.showErrorMessage("@fc-import-fail");
                         return;
                     }
 
-                    String[] buffer = Core.app.getClipboardText().split(":");
+                    String[] buffer = codes.split(":");
                     if(buffer.length < data.size){
                         ui.showErrorMessage("@fc-import-fail");
                         return;
