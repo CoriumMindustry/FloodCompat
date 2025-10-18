@@ -26,7 +26,7 @@ import static arc.graphics.g2d.Draw.*;
 import static mindustry.content.Blocks.*;
 
 public class EditDrawers{
-    private static boolean draw = false, noEffects = false;
+    private static boolean applied = false, draw = false, noEffects = false;
 
     public static class Data{
         final Effect effect;
@@ -112,7 +112,8 @@ public class EditDrawers{
         });
 
         Events.run(Trigger.preDraw, () -> {
-            if(Core.settings.getBool("fc-applied")){
+            applied = Core.settings.getBool("fc-applied");
+            if(applied){
                 draw = (
                     (Core.settings.getBool("fc-draw")
                     || Core.settings.getInt("fc-quality") == 2)
@@ -155,6 +156,57 @@ public class EditDrawers{
                         if(isFlood()) return;
 
                         super.drawTeam();
+                    }
+
+                    @Override
+                    public boolean collision(Bullet bullet){
+                        boolean wasDead = health <= 0;
+
+                        float damage = bullet.type.buildingDamage(bullet);
+                        if(!bullet.type.pierceArmor)
+                            damage = Damage.applyArmor(damage, w.armor);
+
+                        damage(bullet, bullet.team, damage);
+                        if(health <= 0 && !wasDead)
+                            Events.fire(new BuildingBulletDestroyEvent(this, bullet));
+
+                        hit = 1f;
+
+                        // flood does not have such stats
+                        if(!applied || team.id != Team.blue.id){
+                            if(w.lightningChance > 0f){
+                                if(Mathf.chance(w.lightningChance)){
+                                    Lightning.create(team, w.lightningColor, w.lightningDamage, x, y, bullet.rotation() + 180f, w.lightningLength);
+                                    w.lightningSound.at(tile, Mathf.random(0.9f, 1.1f));
+                                }
+                            }
+
+                            if(w.chanceDeflect > 0f){
+                                if(bullet.vel.len() <= 0.1f || !bullet.type.reflectable) return true;
+
+                                if(!Mathf.chance(w.chanceDeflect / bullet.damage())) return true;
+
+                                w.deflectSound.at(tile, Mathf.random(0.9f, 1.1f));
+
+                                bullet.trns(-bullet.vel.x, -bullet.vel.y);
+
+                                float penX = Math.abs(x - bullet.x), penY = Math.abs(y - bullet.y);
+
+                                if(penX > penY){
+                                    bullet.vel.x *= -1;
+                                }else{
+                                    bullet.vel.y *= -1;
+                                }
+
+                                bullet.owner = this;
+                                bullet.team = team;
+                                bullet.time += 1f;
+
+                                return false;
+                            }
+                        }
+
+                        return true;
                     }
 
                     @Override
