@@ -110,6 +110,9 @@ kotlin.compilerOptions {
 tasks.register("minimize", ProGuardTask) { // We shrink because of kotlin being >1MB
     dependsOn jar
 
+    outputs.upToDateWhen {
+        new File("$buildDir/libs/FloodCompatDesktop.jar").exists()
+    }
     injars "build/libs/FloodCompatUnshrunk.jar", filter: '!module-info.class,!META-INF/**,!**.kotlin_builtins'
     outjars "build/libs/FloodCompatDesktop.jar"
 
