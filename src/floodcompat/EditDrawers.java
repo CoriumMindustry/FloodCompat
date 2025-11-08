@@ -21,13 +21,13 @@ import mindustry.world.*;
 import mindustry.world.blocks.defense.*;
 
 import static arc.math.Angles.*;
-import static mindustry.Vars.*;
 import static arc.graphics.g2d.Draw.*;
+import static mindustry.Vars.*;
 import static mindustry.content.Blocks.*;
 
-public class EditDrawers{
-    private static boolean applied = false, draw = false, noEffects = false;
+import static floodcompat.SettingCache.*;
 
+public class EditDrawers{
     public static class Data{
         final Effect effect;
         final Color color;
@@ -111,8 +111,7 @@ public class EditDrawers{
             }
         });
 
-        Events.run(Trigger.preDraw, () -> {
-            applied = Core.settings.getBool("fc-applied");
+        Events.run(Trigger.update, () -> {
             if(applied){
                 draw = (
                     (Core.settings.getBool("fc-draw")
@@ -134,7 +133,7 @@ public class EditDrawers{
                     public boolean isFlood(){
                         return(
                             draw
-                            && team.id == Team.blue.id
+                            && team.id == floodTeam
                         );
                     }
 
@@ -173,7 +172,7 @@ public class EditDrawers{
                         hit = 1f;
 
                         // flood does not have such stats
-                        if(!applied || team.id != Team.blue.id){
+                        if(!applied || team.id != floodTeam){
                             if(w.lightningChance > 0f){
                                 if(Mathf.chance(w.lightningChance)){
                                     Lightning.create(team, w.lightningColor, w.lightningDamage, x, y, bullet.rotation() + 180f, w.lightningLength);

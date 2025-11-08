@@ -21,8 +21,6 @@ class FloodCompat : Mod() {
     private val allTiles = ObjectSet<Tile>()
     private val allTasks = Seq<Timer.Task>()
 
-    /** Used to prevent flood from applying twice */
-    private var applied = false
     /** Time of the last version fetch, in millis */
     private var lastFetch = 0L
     /** Whether the mod's up to date */
@@ -33,17 +31,14 @@ class FloodCompat : Mod() {
 
         Events.on(EventType.ClientLoadEvent::class.java) {
             EditDrawers.init()
-
-            applied = false
-            Core.settings.put("fc-applied", false)
+            SettingCache.applied = false
         }
 
         // call onWorldLoad() - it's necessary for /sync to not disable the mod
         Events.on(EventType.WorldLoadEvent::class.java) { onWorldLoad() }
 
         Events.on(EventType.ResetEvent::class.java) {
-            applied = false
-            Core.settings.put("fc-applied", false)
+            SettingCache.applied = false
         }
 
         if (!state.isMenu)
@@ -51,12 +46,11 @@ class FloodCompat : Mod() {
 
         // ignore this packet if stuff was already applied, probably sent twice due to us asking the server
         netClient.addBinaryPacketHandler("flood") {
-            if (applied) return@addBinaryPacketHandler
+            bytes: ByteArray -> SettingCache.init(bytes)
+            if (SettingCache.applied) return@addBinaryPacketHandler
 
             Log.debug("Flood responded")
-
-            applied = true
-            Core.settings.put("fc-applied", true)
+            SettingCache.applied = true
 
             // fetch at most once every 10 minutes
             if (Time.timeSinceMillis(lastFetch) >= 600000) {
@@ -98,8 +92,8 @@ class FloodCompat : Mod() {
             Core.app.post( { Call.serverBinaryPacketReliable("flood-rs", ByteArray(0)) } )
         }
 
-        netClient.addBinaryPacketHandler("anticreep") { bytes: ByteArray ->
-            if (!applied || bytes.size < 10 || Core.settings.getInt("fc-quality") == 2) return@addBinaryPacketHandler // This can eat some anticreep packets right when the player joins, but it's not a big deal
+        netClient.addBinaryPacketHandler("flood-ac") { bytes: ByteArray ->
+            if (!SettingCache.applied || bytes.size < 10 || Core.settings.getInt("fc-quality") == 2) return@addBinaryPacketHandler // This can eat some anticreep packets right when the player joins, but it's not a big deal
 
             val buffer = ByteBuffer.wrap(bytes)
 
