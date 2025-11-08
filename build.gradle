@@ -70,7 +70,8 @@ tasks.register('jarAndroid') {
         def dependencies = (configurations.compileClasspath.asList() + configurations.runtimeClasspath.asList() + [new File(platformRoot, "android.jar")]).collect{ "--classpath $it.path" }.join(" ")
 
         //dex and desugar files - this requires d8 in your PATH
-        "d8 $dependencies --min-api 14 --output FloodCompatAndroid.jar FloodCompatDesktop.jar"
+        def d8Path = new File(sdkRoot, "build-tools/34.0.0/d8.bat").absolutePath
+        "$d8Path $dependencies --min-api 14 --output FloodCompatAndroid.jar FloodCompatDesktop.jar"
             .execute(null, new File("$buildDir/libs")).waitForProcessOutput(System.out, System.err)
     }
 }
