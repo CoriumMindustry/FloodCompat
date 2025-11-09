@@ -88,7 +88,7 @@ public class EditDrawers{
 
         ui.hudGroup.fill(t -> {
             t.name = "fc-editor-button";
-            t.visibility = () -> Core.settings.getBool("fc-editor") && Core.settings.getBool("fc-applied");
+            t.visibility = () -> Core.settings.getBool("fc-editor") && applied;
             t.bottom().left().marginBottom(mobile ? buttonHeight : 0f).button("@fc-editor-button", Icon.fill, () -> {
                 rebuild();
                 colorEditor.show();
