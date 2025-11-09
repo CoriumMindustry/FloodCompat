@@ -92,7 +92,7 @@ class FloodCompat : Mod() {
             Core.app.post( { Call.serverBinaryPacketReliable("flood-rs", ByteArray(0)) } )
         }
 
-        netClient.addBinaryPacketHandler("flood-ac") { bytes: ByteArray ->
+        netClient.addBinaryPacketHandler("anticreep") { bytes: ByteArray ->
             if (!SettingCache.applied || bytes.size < 10 || Core.settings.getInt("fc-quality") == 2) return@addBinaryPacketHandler // This can eat some anticreep packets right when the player joins, but it's not a big deal
 
             val buffer = ByteBuffer.wrap(bytes)
