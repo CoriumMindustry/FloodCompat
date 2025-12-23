@@ -89,7 +89,18 @@ class FloodCompat : Mod() {
             } else if (!newest) ui.chatfrag.addMessage(Strings.format("[scarlet]@", Core.bundle.get("fc-outdated")))
 
             // Respond to flood so it would know we're using the mod
-            Core.app.post( { Call.serverBinaryPacketReliable("flood-rs", ByteArray(0)) } )
+            Core.app.post( {
+                var range = Core.settings.getInt("fc-culling", -1)
+                if(Core.settings.getInt("fc-quality", 0) >= 2)
+                    range = 40
+
+                Call.serverBinaryPacketReliable(
+                    "flood-rs",
+                    byteArrayOf(
+                        range.toByte()
+                    )
+                )
+            } )
         }
 
         netClient.addBinaryPacketHandler("flood-ac") { bytes: ByteArray ->
