@@ -84,7 +84,7 @@ public class EditDrawers{
             t.sliderPref("fc-culling", -1, -1, 120, i -> switch(i){
                 case -1 -> Core.bundle.get("fc-culling.disabled");
                 case 0 -> Core.bundle.get("fc-culling.no-effects");
-                default -> Core.bundle.get("fc-culling");
+                default -> Core.bundle.format("fc-culling", i);
             });
             t.checkPref("fc-draw", true);
             t.checkPref("fc-editor", false);
