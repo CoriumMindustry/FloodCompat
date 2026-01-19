@@ -51,6 +51,18 @@ public class EditDrawers{
         }
     }
 
+    public static class PalCache{
+        final String from;
+        final int[] colors;
+        final int hash;
+
+        public PalCache(Player from, int[] colors){
+            this.from = from.coloredName();
+            this.colors = colors;
+            hash = from.uuid().hashCode();
+        }
+    }
+
     public static final OrderedMap<Block, Data> dataMap = OrderedMap.of(
         scrapWall, new Data(new Color(0.518f, 0.725f, 0.82f, 0.69f)),
         titaniumWall, new Data(new Color(0.388f, 0.682f, 0.82f, 0.75f)),
@@ -88,6 +100,7 @@ public class EditDrawers{
             });
             t.checkPref("fc-draw", true);
             t.checkPref("fc-editor", false);
+            t.sliderPref("fc-array", 5, 1, 10, i -> i + "");
             t.checkPref("fc-sliders", true);
         });
 
@@ -128,6 +141,38 @@ public class EditDrawers{
             }
 
             draw = false;
+        });
+
+        Events.on(EventType.PlayerChatEvent.class, e -> {
+            if(e.message == null || e.message.isEmpty()) return;
+            String codes = e.message;
+
+            int pos = codes.lastIndexOf('■');
+            if(pos > 0)
+                codes = codes.substring(0, pos).replaceAll("[]\\[]", "");
+
+            String[] buffer = codes.split("[:■]");
+            if(buffer.length < dataMap.size) return;
+
+            int[] colors = new int[buffer.length];
+            for(int i = 0; i < buffer.length; i++)
+                colors[i] = Color.valueOf(buffer[i]).rgba();
+
+            ui.showInfoFade(
+                Core.bundle.format(
+                    "fc-shared",
+                    e.player.coloredName()
+                )
+            );
+
+            for(int i = 0; i < shared.length; i++){
+                if(shared[i] != null && shared[i].hash == e.player.uuid().hashCode()){
+                    shared[i] = new PalCache(e.player, colors);
+                    return;
+                }
+            }
+
+            shared[++lastPosition % shared.length] = new PalCache(e.player, colors);
         });
 
         Vars.content.blocks().each(b -> {
@@ -270,6 +315,9 @@ public class EditDrawers{
         });
     }
 
+    // cache for chat-shared palettes
+    final static PalCache[] shared = new PalCache[5];
+    static int lastPosition = -1;
     // the main "window" for the editor
     final static BaseDialog colorEditor = new BaseDialog("@fc-editor");
     // secondary "window" for save profiles
@@ -339,7 +387,7 @@ public class EditDrawers{
                     text.reset();
                     save = "palette";
 
-                    text.add(Strings.format("@: @", Core.bundle.get("fc-save-name"), save)).row();
+                    text.add(Core.bundle.format("fc-save-name", save)).row();
                     if(saveNames.contains(save))
                         text.add("@fc-overwrite").color(Color.scarlet).row();
 
@@ -357,7 +405,7 @@ public class EditDrawers{
                                 saveData.add(dataMap.get(data.get(i)).color.rgba());
                             Core.settings.putJson("fc-palette-" + save, Integer.class, saveData);
 
-                            ui.showInfoFade(Strings.format("@ @", Core.bundle.get("fc-saved"), save));
+                            ui.showInfoFade(Core.bundle.format("fc-saved", save));
                             saves.hide();
                         }).width(uiSize);
                     });
@@ -368,7 +416,7 @@ public class EditDrawers{
                             save = name.isEmpty() ? "palette" : name;
 
                             text.reset();
-                            text.add(Strings.format("@: @", Core.bundle.get("fc-save-name"), save)).row();
+                            text.add(Core.bundle.format("fc-save-name", save)).row();
                             if(saveNames.contains(save))
                                 text.add("@fc-overwrite").color(Color.scarlet).row();
                         }).width(380f).row();
@@ -404,7 +452,7 @@ public class EditDrawers{
 
                                     rebuild();
 
-                                    ui.showInfoFade(Strings.format("@ @", Core.bundle.get("fc-loaded"), string));
+                                    ui.showInfoFade(Core.bundle.format("fc-loaded", string));
                                     saves.hide();
                                 }).width(50f + (10f * string.length()));
 
@@ -440,9 +488,43 @@ public class EditDrawers{
 
                                     Core.settings.remove("fc-palette-" + string);
 
-                                    ui.showInfoFade(Strings.format("@ @", Core.bundle.get("fc-removed"), string));
+                                    ui.showInfoFade(Core.bundle.format("fc-removed", string));
                                     saves.hide();
                                 }).width(50f + (10f * string.length()));
+
+                                if(i != 0 && i % columns == 0){
+                                    tb.add(worker).row();
+                                    worker = new Table();
+                                }
+                            }
+
+                            tb.add(worker).row();
+                        }
+                    });
+
+                    saves.show();
+                }).width(uiSize).row();
+                t.button("\uE801 " + Core.bundle.get("fc-cache"), () -> {
+                    saves.reset();
+
+                    saves.fill(nt -> nt.top().marginTop(40f).add("@fc-select").width(220f));
+                    saves.fill(nt -> nt.bottom().marginBottom(buttonHeight).button(Icon.left, saves::hide).width(uiSize));
+                    saves.fill(tb -> {
+                        if(saveNames.isEmpty())
+                            tb.add("@fc-no-saves").width(220f).row();
+                        else{
+                            Table worker = new Table();
+                            for(int i = 0; i < shared.length; i++){
+                                if(shared[i] == null) continue;
+
+                                PalCache cache = shared[i];
+                                worker.button(cache.from, () ->
+                                    ui.showConfirm("@fc-import-confirm", () -> {
+                                        for(int in = 0; in < cache.colors.length; in++)
+                                            Core.settings.put("fc-col-" + data.get(in).name, dataMap.get(data.get(in)).color.set(cache.colors[in]).rgba());
+                                        ui.showInfoFade("@fc-import-success");
+                                    })
+                                ).width(50f + (10f * Strings.stripColors(cache.from).length()));
 
                                 if(i != 0 && i % columns == 0){
                                     tb.add(worker).row();
@@ -469,7 +551,11 @@ public class EditDrawers{
                         return;
                     }
 
-                    String[] buffer = codes.split(":");
+                    int pos = codes.lastIndexOf('■');
+                    if(pos > 0)
+                        codes = codes.substring(0, pos).replaceAll("[]\\[]", "");
+
+                    String[] buffer = codes.split("[:■]");
                     if(buffer.length < data.size){
                         ui.showErrorMessage("@fc-import-fail");
                         return;
@@ -483,9 +569,7 @@ public class EditDrawers{
                 }).size(width, 50f);
                 t.button(Icon.copy, () -> {
                     for(int i = 0; i < data.size; i++)
-                        uiBuilder.append(dataMap.get(data.get(i)).color.toString()).append(":");
-
-                    uiBuilder.setLength(uiBuilder.length() - 1);
+                        uiBuilder.append("[#").append(dataMap.get(data.get(i)).color.toString()).append("]■");
                     Core.app.setClipboardText(uiBuilder.toString());
 
                     uiBuilder.setLength(0);
