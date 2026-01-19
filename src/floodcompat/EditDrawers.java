@@ -144,7 +144,7 @@ public class EditDrawers{
         });
 
         Events.on(EventType.PlayerChatEvent.class, e -> {
-            if(e.message == null || e.message.isEmpty()) return;
+            if(e.player.uuid().equals(player.uuid()) || e.message.isEmpty()) return;
             String codes = e.message;
 
             int pos = codes.lastIndexOf('■');
@@ -316,7 +316,7 @@ public class EditDrawers{
     }
 
     // cache for chat-shared palettes
-    final static PalCache[] shared = new PalCache[5];
+    final static PalCache[] shared = new PalCache[Core.settings.getInt("fc-array", 5)];
     static int lastPosition = -1;
     // the main "window" for the editor
     final static BaseDialog colorEditor = new BaseDialog("@fc-editor");
@@ -510,7 +510,7 @@ public class EditDrawers{
                     saves.fill(nt -> nt.top().marginTop(40f).add("@fc-select").width(220f));
                     saves.fill(nt -> nt.bottom().marginBottom(buttonHeight).button(Icon.left, saves::hide).width(uiSize));
                     saves.fill(tb -> {
-                        if(saveNames.isEmpty())
+                        if(Structs.count(shared, s -> s != null) <= 0)
                             tb.add("@fc-no-saves").width(220f).row();
                         else{
                             Table worker = new Table();
