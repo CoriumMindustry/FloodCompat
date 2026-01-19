@@ -108,7 +108,7 @@ public class EditDrawers{
         ui.hudGroup.fill(t -> {
             t.name = "fc-editor-button";
             t.visibility = () -> Core.settings.getBool("fc-editor") && applied;
-            (mobile ? t.top().marginTop(100f * Scl.scl()) : t.bottom()).button("@fc-editor-button", Icon.fill, () -> {
+            (mobile ? t.top().marginTop(120f * Scl.scl()) : t.bottom()).left().button("@fc-editor-button", Icon.fill, () -> {
                 rebuild();
                 colorEditor.show();
             }).size(uiSize, buttonHeight);
@@ -351,7 +351,7 @@ public class EditDrawers{
 
     final static Image preview = new Image(
         new Texture(
-            new Pixmap(384, 384){{
+            new Pixmap(256, 256){{
                 fill(Color.white);
             }}
         )
@@ -606,6 +606,7 @@ public class EditDrawers{
             ).row();
             t.spacer(() -> spacerSize, () -> lowHeight).row();
             t.add(fields);
+            t.spacer(() -> spacerSize, () -> uiHeight * 2f).row();
         });
 
         colorEditor.fill(t -> {
