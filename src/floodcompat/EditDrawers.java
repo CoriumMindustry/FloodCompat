@@ -144,7 +144,7 @@ public class EditDrawers{
         });
 
         Events.on(EventType.PlayerChatEvent.class, e -> {
-            if(e.player.uuid().equals(player.uuid()) || e.message.isEmpty()) return;
+            if(e.player == null || e.player.uuid().equals(player.uuid()) || e.message.isEmpty()) return;
             String codes = e.message;
 
             int pos = codes.lastIndexOf('■');
