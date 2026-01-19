@@ -15,6 +15,7 @@ import mindustry.entities.*;
 import mindustry.game.*;
 import mindustry.game.EventType.*;
 import mindustry.gen.*;
+import mindustry.input.*;
 import mindustry.type.*;
 import mindustry.ui.dialogs.*;
 import mindustry.world.*;
@@ -33,9 +34,9 @@ public class EditDrawers{
         final Color color;
         final int rgba;
 
-        public Data(Color color){
-            this.color = color;
-            this.rgba = color.rgba();
+        public Data(float r, float g, float b, float a){
+            color = new Color(r, g, b, a);
+            rgba = color.rgba();
 
             effect = new Effect(25, e -> {
                 color(color);
@@ -64,16 +65,16 @@ public class EditDrawers{
     }
 
     public static final OrderedMap<Block, Data> dataMap = OrderedMap.of(
-        scrapWall, new Data(new Color(0.518f, 0.725f, 0.82f, 0.69f)),
-        titaniumWall, new Data(new Color(0.388f, 0.682f, 0.82f, 0.75f)),
-        thoriumWall, new Data(new Color(0.286f, 0.616f, 0.769f, 0.75f)),
-        phaseWall, new Data(new Color(0.208f, 0.573f, 0.741f, 0.75f)),
-        surgeWall, new Data(new Color(0.153f, 0.525f, 0.702f, 0.8f)),
-        reinforcedSurgeWall, new Data(new Color(0.106f, 0.478f, 0.651f, 0.8f)),
-        plastaniumWall, new Data(new Color(0.059f, 0.435f, 0.612f, 0.8f)),
-        berylliumWall, new Data(new Color(0.035f, 0.4f, 0.569f, 0.85f)),
-        tungstenWall, new Data(new Color(0.024f, 0.361f, 0.522f, 0.85f)),
-        carbideWall, new Data(new Color(0f, 0.329f, 0.478f, 0.9f))
+        scrapWall, new Data(0.518f, 0.725f, 0.82f, 0.69f),
+        titaniumWall, new Data(0.388f, 0.682f, 0.82f, 0.75f),
+        thoriumWall, new Data(0.286f, 0.616f, 0.769f, 0.75f),
+        phaseWall, new Data(0.208f, 0.573f, 0.741f, 0.75f),
+        surgeWall, new Data(0.153f, 0.525f, 0.702f, 0.8f),
+        reinforcedSurgeWall, new Data(0.106f, 0.478f, 0.651f, 0.8f),
+        plastaniumWall, new Data(0.059f, 0.435f, 0.612f, 0.8f),
+        berylliumWall, new Data(0.035f, 0.4f, 0.569f, 0.85f),
+        tungstenWall, new Data(0.024f, 0.361f, 0.522f, 0.85f),
+        carbideWall, new Data(0f, 0.329f, 0.478f, 0.9f)
     );
 
     public static void init(){
@@ -107,7 +108,7 @@ public class EditDrawers{
         ui.hudGroup.fill(t -> {
             t.name = "fc-editor-button";
             t.visibility = () -> Core.settings.getBool("fc-editor") && applied;
-            t.bottom().left().marginBottom(mobile ? buttonHeight : 0f).button("@fc-editor-button", Icon.fill, () -> {
+            (mobile ? t.top().marginTop(100f * Scl.scl()) : t.bottom()).button("@fc-editor-button", Icon.fill, () -> {
                 rebuild();
                 colorEditor.show();
             }).size(uiSize, buttonHeight);
@@ -144,7 +145,7 @@ public class EditDrawers{
         });
 
         Events.on(EventType.PlayerChatEvent.class, e -> {
-            if(e.player == null || e.player.uuid().equals(player.uuid()) || e.message.isEmpty()) return;
+            if(e.player == null || e.player == player || e.message.isEmpty()) return;
             String codes = e.message;
 
             int pos = codes.lastIndexOf('■');
@@ -594,7 +595,7 @@ public class EditDrawers{
         updateFields();
         updatePreview();
 
-        colorEditor.table(t -> {
+        colorEditor.pane(t -> {
             t.add(preview).row();
             t.add(hex).row();
             t.spacer(() -> spacerSize, () -> uiHeight).row();
