@@ -343,7 +343,8 @@ public class EditDrawers{
     final static float mult = 1 / Scl.scl(),
         sliderSize = 500f,
         fieldSize = 400f,
-        spacerSize = 240f * mult,
+        spacerSize = sliderSize + 20f,
+        window = sliderSize + 100f,
         uiSize = 180f,
         buttonHeight = 60f,
         uiHeight = 40f,
@@ -455,7 +456,7 @@ public class EditDrawers{
 
                                     ui.showInfoFade(Core.bundle.format("fc-loaded", string));
                                     saves.hide();
-                                }).width(50f + (10f * string.length()));
+                                }).width(buttonHeight + (10f * string.length()));
 
                                 if(i != 0 && i % columns == 0){
                                     tb.add(worker).row();
@@ -491,7 +492,7 @@ public class EditDrawers{
 
                                     ui.showInfoFade(Core.bundle.format("fc-removed", string));
                                     saves.hide();
-                                }).width(50f + (10f * string.length()));
+                                }).width(buttonHeight + (10f * string.length()));
 
                                 if(i != 0 && i % columns == 0){
                                     tb.add(worker).row();
@@ -520,12 +521,12 @@ public class EditDrawers{
 
                                 PalCache cache = shared[i];
                                 worker.button(cache.from, () ->
-                                    ui.showConfirm("@fc-import-confirm", () -> {
+                                    ui.showConfirm(Core.bundle.format("fc-shared-confirm", cache.from), () -> {
                                         for(int in = 0; in < cache.colors.length; in++)
                                             Core.settings.put("fc-col-" + data.get(in).name, dataMap.get(data.get(in)).color.set(cache.colors[in]).rgba());
                                         ui.showInfoFade("@fc-import-success");
                                     })
-                                ).width(50f + (10f * Strings.stripColors(cache.from).length()));
+                                ).width(buttonHeight + (10f * Strings.stripColors(cache.from).length()));
 
                                 if(i != 0 && i % columns == 0){
                                     tb.add(worker).row();
@@ -544,7 +545,7 @@ public class EditDrawers{
             colorEditor.fill(t -> {
                 t.bottom();
 
-                t.button(Icon.left, colorEditor::hide).size(width, 50f);
+                t.button(Icon.left, colorEditor::hide).size(width, buttonHeight);
                 t.button(Icon.download, () -> {
                     String codes = Core.app.getClipboardText();
                     if(codes == null || codes.isEmpty()){
@@ -567,7 +568,7 @@ public class EditDrawers{
                             Core.settings.put("fc-col-" + data.get(i).name, dataMap.get(data.get(i)).color.set(Color.valueOf(buffer[i])).rgba());
                         ui.showInfoFade("@fc-import-success");
                     });
-                }).size(width, 50f);
+                }).size(width, buttonHeight);
                 t.button(Icon.copy, () -> {
                     for(int i = 0; i < data.size; i++)
                         uiBuilder.append("[#").append(dataMap.get(data.get(i)).color.toString()).append("]■");
@@ -575,7 +576,7 @@ public class EditDrawers{
 
                     uiBuilder.setLength(0);
                     ui.showInfoFade("@fc-export-success");
-                }).size(width, 50f);
+                }).size(width, buttonHeight);
                 t.button(Icon.trash, () ->
                     ui.showConfirm("@fc-confirm-all", () -> {
                         for(int i = 0; i < data.size; i++){
@@ -586,7 +587,7 @@ public class EditDrawers{
 
                         rebuild();
                     })
-                ).size(width, 50f);
+                ).size(width, buttonHeight);
             });
 
             return;
@@ -597,6 +598,7 @@ public class EditDrawers{
 
         colorEditor.pane(t -> {
             t.add(preview).row();
+            t.spacer(() -> spacerSize, () -> lowHeight).row();
             t.add(hex).row();
             t.spacer(() -> spacerSize, () -> uiHeight).row();
             t.add(
@@ -606,8 +608,7 @@ public class EditDrawers{
             ).row();
             t.spacer(() -> spacerSize, () -> lowHeight).row();
             t.add(fields);
-            t.spacer(() -> spacerSize, () -> uiHeight * 2f).row();
-        });
+        }).width(width).marginBottom(buttonHeight + lowHeight);
 
         colorEditor.fill(t -> {
             t.bottom();
@@ -615,7 +616,7 @@ public class EditDrawers{
             t.button(Icon.left, () -> {
                 selected = null;
                 rebuild();
-            }).size(width, 50f);
+            }).size(width, buttonHeight);
             t.button(Icon.ok, () -> {
                 if(dataMap.get(selected).rgba != newColor.rgba())
                     Core.settings.put("fc-col-" + selected.name, newColor.rgba());
@@ -624,7 +625,7 @@ public class EditDrawers{
                 selected = null;
 
                 rebuild();
-            }).size(width, 50f);
+            }).size(width, buttonHeight);
             t.button(Icon.trash, () ->
                 ui.showConfirm("@fc-confirm", () -> {
                     Core.settings.remove("fc-col-" + selected.name);
@@ -635,7 +636,7 @@ public class EditDrawers{
                     newColor.set(vars.color);
                     rebuild();
                 })
-            ).size(width, 50f);
+            ).size(width, buttonHeight);
         });
     }
 
