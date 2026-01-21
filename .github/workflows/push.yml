@@ -1,8 +1,12 @@
 name: Bundles Update
 
-on: [push, workflow_dispatch]
+on:
+  push:
+    paths:
+      - 'assets/bundles/**'
+  workflow_dispatch:
 
-permissions: {}
+permissions: { }
 jobs:
   runPush:
     permissions:
@@ -29,5 +33,19 @@ jobs:
             git config --global user.email "actions@github.com"
             git add assets/bundles/*
             git commit -m "Automatic bundle update"
+            git push
+          fi
+
+      - name: Sync bundles
+        run: |
+          # Clone the destination repo
+          git clone https://x-access-token:${{ secrets.SYNC_TOKEN }}@github.com/WMF-Industries/gamemode-translations.git gamemode-translations
+          cp -R assets/bundles/* gamemode-translations/FloodCompat/
+          cd gamemode-translations
+          if [ -n "$(git status --porcelain)" ]; then
+            git config --global user.name "Github Actions"
+            git config --global user.email "actions@github.com"
+            git add .
+            git commit -m "Sync bundles from FloodCompat"
             git push
           fi
