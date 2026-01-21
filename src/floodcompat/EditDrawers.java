@@ -608,7 +608,7 @@ public class EditDrawers{
             ).row();
             t.spacer(() -> spacerSize, () -> lowHeight).row();
             t.add(fields);
-        }).width(width).marginBottom(buttonHeight + lowHeight);
+        }).width(window).marginBottom(buttonHeight + lowHeight);
 
         colorEditor.fill(t -> {
             t.bottom();
