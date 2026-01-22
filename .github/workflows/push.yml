@@ -40,7 +40,6 @@ jobs:
 
       - name: Sync bundles
         run: |
-          # Clone the destination repo
           git clone https://x-access-token:${{ secrets.SYNC_TOKEN }}@github.com/WMF-Industries/gamemode-translations.git gamemode-translations
           cp -R assets/bundles/* gamemode-translations/FloodCompat/
           cd gamemode-translations
