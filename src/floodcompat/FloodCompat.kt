@@ -28,7 +28,6 @@ class FloodCompat : Mod() {
 
     override fun init() {
         Log.info("Flood Compatibility loaded!")
-        EditDrawers.fc = mods.getMod(javaClass)
 
         Events.on(EventType.ClientLoadEvent::class.java) {
             EditDrawers.init()
@@ -149,6 +148,16 @@ class FloodCompat : Mod() {
                     tiles.clear()
                 }, time)
             )
+        }
+
+        netClient.addBinaryPacketHandler("flood-nfx") { bytes: ByteArray ->
+            if (!Core.settings.getBool("fc-customs") || EditDrawers.cachedSound == null) return@addBinaryPacketHandler
+
+            val pos = ByteBuffer.wrap(bytes).getInt()
+            val x = Point2.x(pos) * tilesize
+            val y = Point2.y(pos) * tilesize
+
+            EditDrawers.cachedSound.at(x.toFloat(), y.toFloat(), 1f, 4f)
         }
 
         Timer.schedule({

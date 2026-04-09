@@ -31,9 +31,7 @@ import static mindustry.content.Blocks.*;
 import static floodcompat.SettingCache.*;
 
 public class EditDrawers{
-    public static Mods.LoadedMod fc;
     public static Sound cachedSound;
-    public static int cachedID;
 
     public static class Data{
         final Effect effect;
@@ -84,11 +82,7 @@ public class EditDrawers{
     );
 
     public static void init(){
-        cachedSound = Sounds.wind3;
-        cachedID = Sounds.getSoundId(cachedSound);
-
-        if(Core.settings.getBool("fc-customs"))
-            reloadWind3();
+        Core.app.post(EditDrawers::reloadSound);
 
         Seq<Block> blocks = dataMap.keys().toSeq();
         for(int i = 0; i < blocks.size; i++){
@@ -101,7 +95,7 @@ public class EditDrawers{
         }
 
         saveNames.addAll(
-            Core.settings.getJson("fc-saveNames", Seq.class, String.class, Seq::new)
+            Core.settings.getJson("fc-saveNames", Seq.class, String.class, Seq<String>::new)
         );
 
         ui.settings.addCategory("@fc-category", Icon.waves, t -> {
@@ -115,7 +109,9 @@ public class EditDrawers{
             t.checkPref("fc-editor", false);
             t.sliderPref("fc-array", 5, 1, 10, i -> i + "");
             t.checkPref("fc-sliders", true);
-            t.checkPref("fc-customs", false, b -> reloadWind3());
+            t.checkPref("fc-customs", false, reload -> {
+                if(reload) reloadSound();
+            });
 
             t.row().button("@fc-choose", () ->
                 platform.showMultiFileChooser(file -> {
@@ -123,13 +119,12 @@ public class EditDrawers{
                         Sound sound = new Sound(file);
                         sound.play();
 
+                        cachedSound = sound;
                         Core.settings.put("fc-wind3-path", file.path());
-                        if(Core.settings.getBool("fc-customs", false))
-                            reloadWind3();
                     }catch(Exception ex){
                         ui.showErrorMessage("@fc-file-error");
+                        cachedSound = Sounds.wind3;
                         Core.settings.put("fc-wind3-path", "null");
-                        reloadWind3();
                     }
                 }, "mp3", "ogg")
             ).width(240f);
@@ -346,31 +341,22 @@ public class EditDrawers{
         });
     }
 
-    public static void reloadWind3(){
-        ObjectIntMap<Sound> soundToId = Reflect.get(Sounds.class, ObjectIntMap.class, "soundToId");
-        soundToId.remove(Sounds.wind3);
+    public static void reloadSound(){
+        if(Core.settings.getString("fc-wind3-path", "null").equals("null")){
+            cachedSound = Sounds.wind3;
+            return;
+        }
 
-        if(Core.settings.getBool("fc-customs", false)){
-            if(Core.settings.getString("fc-wind3-path", "null").equals("null")){
-                ZipFi jar = new ZipFi(fc.file);
-                Sounds.wind3 = new Sound(
-                    jar.child("sounds").child("cr.ogg")
-                );
-            }else try{
-                Sounds.wind3 = new Sound(
-                    Core.files.absolute(
-                        Core.settings.getString("fc-wind3-path", "null")
-                    )
-                );
-            }catch(Exception e){
-                Core.settings.put("fc-wind3-path", "null");
-                Sounds.wind3 = cachedSound;
-            }
-        }else Sounds.wind3 = cachedSound;
-
-        IntMap<Sound> idToSound = Reflect.get(Sounds.class, IntMap.class, "idToSound");
-        idToSound.put(cachedID, Sounds.wind3);
-        soundToId.put(Sounds.wind3, cachedID);
+        try{
+            cachedSound = new Sound(
+                Core.files.absolute(
+                    Core.settings.getString("fc-wind3-path", "null")
+                )
+            );
+        }catch(Exception e){
+            Core.settings.put("fc-wind3-path", "null");
+            cachedSound = Sounds.wind3;
+        }
     }
 
     // cache for chat-shared palettes
