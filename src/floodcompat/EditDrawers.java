@@ -115,18 +115,7 @@ public class EditDrawers{
             t.checkPref("fc-editor", false);
             t.sliderPref("fc-array", 5, 1, 10, i -> i + "");
             t.checkPref("fc-sliders", true);
-            t.checkPref("fc-customs", false, b -> {
-                if(b){
-                    if(Core.settings.getString("fc-wind3-path", "null").equals("null"))
-                        Core.settings.put("fc-wind3", "default");
-
-                    reloadWind3();
-                    return;
-                }
-
-                Core.settings.put("fc-wind3", "none");
-                reloadWind3();
-            });
+            t.checkPref("fc-customs", false, b -> reloadWind3());
 
             t.row().button("@fc-choose", () ->
                 platform.showMultiFileChooser(file -> {
@@ -135,7 +124,7 @@ public class EditDrawers{
                         sound.play();
 
                         Core.settings.put("fc-wind3-path", file.path());
-                        if(Core.settings.getBool("fc-customs"))
+                        if(Core.settings.getBool("fc-customs", false))
                             reloadWind3();
                     }catch(Exception ex){
                         ui.showErrorMessage("@fc-file-error");
@@ -361,28 +350,23 @@ public class EditDrawers{
         ObjectIntMap<Sound> soundToId = Reflect.get(Sounds.class, ObjectIntMap.class, "soundToId");
         soundToId.remove(Sounds.wind3);
 
-        String setting = Core.settings.getString("fc-wind3", "none");
-        switch(setting){
-            case "none" -> Sounds.wind3 = cachedSound;
-            case "default" -> {
+        if(Core.settings.getBool("fc-wind3", false)){
+            if(Core.settings.getString("fc-wind3-path", "null").equals("null")){
                 ZipFi jar = new ZipFi(fc.file);
                 Sounds.wind3 = new Sound(
                     jar.child("sounds").child("cr.ogg")
                 );
+            }else try{
+                Sounds.wind3 = new Sound(
+                    Core.files.absolute(
+                        Core.settings.getString("fc-wind3-path", "null")
+                    )
+                );
+            }catch(Exception e){
+                Core.settings.put("fc-wind3-path", "null");
+                Sounds.wind3 = cachedSound;
             }
-            default -> {
-                try{
-                    Sounds.wind3 = new Sound(
-                        Core.files.absolute(
-                            Core.settings.getString("fc-wind3-path", "null")
-                        )
-                    );
-                }catch(Exception e){
-                    Core.settings.put("fc-wind3-path", "null");
-                    Sounds.wind3 = cachedSound;
-                }
-            }
-        }
+        }else Sounds.wind3 = cachedSound;
 
         IntMap<Sound> idToSound = Reflect.get(Sounds.class, IntMap.class, "idToSound");
         idToSound.put(cachedID, Sounds.wind3);
