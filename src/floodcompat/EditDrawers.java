@@ -350,7 +350,7 @@ public class EditDrawers{
         ObjectIntMap<Sound> soundToId = Reflect.get(Sounds.class, ObjectIntMap.class, "soundToId");
         soundToId.remove(Sounds.wind3);
 
-        if(Core.settings.getBool("fc-wind3", false)){
+        if(Core.settings.getBool("fc-customs", false)){
             if(Core.settings.getString("fc-wind3-path", "null").equals("null")){
                 ZipFi jar = new ZipFi(fc.file);
                 Sounds.wind3 = new Sound(
