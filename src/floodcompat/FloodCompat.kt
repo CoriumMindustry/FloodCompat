@@ -28,6 +28,7 @@ class FloodCompat : Mod() {
 
     override fun init() {
         Log.info("Flood Compatibility loaded!")
+        EditDrawers.fc = mods.getMod(javaClass)
 
         Events.on(EventType.ClientLoadEvent::class.java) {
             EditDrawers.init()
