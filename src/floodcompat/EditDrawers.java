@@ -134,13 +134,13 @@ public class EditDrawers{
                         Sound sound = new Sound(file);
                         sound.play();
 
-                        if(Core.settings.getBool("fc-customs"))
-                            Sounds.wind3 = sound;
                         Core.settings.put("fc-wind3-path", file.path());
+                        if(Core.settings.getBool("fc-customs"))
+                            reloadWind3();
                     }catch(Exception ex){
                         ui.showErrorMessage("@fc-file-error");
                         Core.settings.put("fc-wind3-path", "null");
-                        Sounds.wind3 = cachedSound;
+                        reloadWind3();
                     }
                 }, "mp3", "ogg")
             ).width(240f);
