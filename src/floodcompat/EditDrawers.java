@@ -31,8 +31,6 @@ import static mindustry.content.Blocks.*;
 import static floodcompat.SettingCache.*;
 
 public class EditDrawers{
-    public static Sound cachedSound;
-
     public static class Data{
         final Effect effect;
         final Color color;
@@ -82,8 +80,6 @@ public class EditDrawers{
     );
 
     public static void init(){
-        Core.app.post(EditDrawers::reloadSound);
-
         Seq<Block> blocks = dataMap.keys().toSeq();
         for(int i = 0; i < blocks.size; i++){
             String setting = "fc-col-" + blocks.get(i).name;
@@ -97,38 +93,6 @@ public class EditDrawers{
         saveNames.addAll(
             Core.settings.getJson("fc-saveNames", Seq.class, String.class, Seq<String>::new)
         );
-
-        ui.settings.addCategory("@fc-category", Icon.waves, t -> {
-            t.sliderPref("fc-quality", 0, 0, 2, i -> Core.bundle.get("fc-quality" + i));
-            t.sliderPref("fc-culling", -1, -1, 120, i -> switch(i){
-                case -1 -> Core.bundle.get("fc-culling.disabled");
-                case 0 -> Core.bundle.get("fc-culling.no-effects");
-                default -> Core.bundle.format("fc-culling", i);
-            });
-            t.checkPref("fc-draw", true);
-            t.checkPref("fc-editor", false);
-            t.sliderPref("fc-array", 5, 1, 10, i -> i + "");
-            t.checkPref("fc-sliders", true);
-            t.checkPref("fc-customs", false, reload -> {
-                if(reload) reloadSound();
-            });
-
-            t.row().button("@fc-choose", () ->
-                platform.showMultiFileChooser(file -> {
-                    try{
-                        Sound sound = new Sound(file);
-                        sound.play();
-
-                        cachedSound = sound;
-                        Core.settings.put("fc-wind3-path", file.path());
-                    }catch(Exception ex){
-                        ui.showErrorMessage("@fc-file-error");
-                        cachedSound = Sounds.wind3;
-                        Core.settings.put("fc-wind3-path", "null");
-                    }
-                }, "mp3", "ogg")
-            ).width(240f);
-        });
 
         ui.hudGroup.fill(t -> {
             t.name = "fc-editor-button";
@@ -339,24 +303,6 @@ public class EditDrawers{
                 };
             }
         });
-    }
-
-    public static void reloadSound(){
-        if(Core.settings.getString("fc-wind3-path", "null").equals("null")){
-            cachedSound = Sounds.wind3;
-            return;
-        }
-
-        try{
-            cachedSound = new Sound(
-                Core.files.absolute(
-                    Core.settings.getString("fc-wind3-path", "null")
-                )
-            );
-        }catch(Exception e){
-            Core.settings.put("fc-wind3-path", "null");
-            cachedSound = Sounds.wind3;
-        }
     }
 
     // cache for chat-shared palettes

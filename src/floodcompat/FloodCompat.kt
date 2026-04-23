@@ -30,7 +30,10 @@ class FloodCompat : Mod() {
         Log.info("Flood Compatibility loaded!")
 
         Events.on(EventType.ClientLoadEvent::class.java) {
+            SettingCache.init()
             EditDrawers.init()
+            SoundUtils.init()
+
             SettingCache.applied = false
         }
 
@@ -39,6 +42,8 @@ class FloodCompat : Mod() {
 
         Events.on(EventType.ResetEvent::class.java) {
             SettingCache.applied = false
+
+            SoundUtils.setVanilla()
         }
 
         if (!state.isMenu)
@@ -46,11 +51,13 @@ class FloodCompat : Mod() {
 
         // ignore this packet if stuff was already applied, probably sent twice due to us asking the server
         netClient.addBinaryPacketHandler("flood") {
-            bytes: ByteArray -> SettingCache.init(bytes)
+            bytes: ByteArray -> SettingCache.load(bytes)
             if (SettingCache.applied) return@addBinaryPacketHandler
 
             Log.debug("Flood responded")
             SettingCache.applied = true
+
+            SoundUtils.replaceVanilla()
 
             // fetch at most once every 10 minutes
             if (Time.timeSinceMillis(lastFetch) >= 600000) {
@@ -151,13 +158,13 @@ class FloodCompat : Mod() {
         }
 
         netClient.addBinaryPacketHandler("flood-nfx") { bytes: ByteArray ->
-            if (!Core.settings.getBool("fc-customs") || EditDrawers.cachedSound == null) return@addBinaryPacketHandler
+            if (!Core.settings.getBool("fc-customs") || SoundUtils.cachedSound == null) return@addBinaryPacketHandler
 
             val pos = ByteBuffer.wrap(bytes).getInt()
             val x = Point2.x(pos) * tilesize
             val y = Point2.y(pos) * tilesize
 
-            EditDrawers.cachedSound.at(x.toFloat(), y.toFloat(), 1f, 4f)
+            SoundUtils.cachedSound.at(x.toFloat(), y.toFloat(), 1f, 4f)
         }
 
         Timer.schedule({
