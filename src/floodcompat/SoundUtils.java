@@ -3,6 +3,7 @@ package floodcompat;
 import arc.*;
 import arc.audio.*;
 import arc.files.*;
+import arc.func.*;
 import arc.struct.*;
 import arc.util.*;
 import mindustry.gen.*;
@@ -91,42 +92,72 @@ public class SoundUtils{
             if(reload) reloadSound();
         });
 
-        t.row().button("@fc-choose", Icon.downloadSmall, () ->
-            platform.showMultiFileChooser(file -> {
-                try{
-                    Sound sound = new Sound(file);
-                    sound.play();
+        t.getSettings().add(
+            new ButtonSetting(tb -> {
+                tb.row().button("@fc-choose", Icon.downloadSmall, () ->
+                    platform.showMultiFileChooser(file -> {
+                        try{
+                            Sound sound = new Sound(file);
 
-                    cachedSound = sound;
-                    Core.settings.put("fc-wind3-path", file.path());
-                }catch(Exception ex){
-                    ui.showErrorMessage("@fc-file-error");
-                    cachedSound = Sounds.wind3;
-                    Core.settings.put("fc-wind3-path", "null");
+                            if(sound.getLength() >= 20){
+                                ui.showConfirm("@fc-sound-warning", () -> {
+                                    cachedSound = sound;
+                                    Core.settings.put("fc-wind3-path", file.path());
+                                });
+                            }else{
+                                sound.play();
+
+                                cachedSound = sound;
+                                Core.settings.put("fc-wind3-path", file.path());
+                            }
+                        }catch(Exception ex){
+                            ui.showErrorMessage("@fc-file-error");
+                            cachedSound = Sounds.wind3;
+                            Core.settings.put("fc-wind3-path", "null");
+                        }
+                    }, "mp3", "ogg")
+                ).width(240f);
+
+                if(!mobile){
+                    tb.row().button("@fc-open", Icon.linkSmall, () -> {
+                        Fi folder = dataDirectory.child("floodcompat");
+                        if(!folder.exists()){
+                            folder.mkdirs();
+
+                            try{
+                                folder.child("readme.txt").file().createNewFile();
+                                var fw = folder.child("readme.txt").writer(false);
+
+                                fw.write(
+                                    "Place custom music files (.mp3 / .ogg) in this folder\nThe music will be loaded when the game starts and will play instead of the default music when playing Flood\n\nNote that music added mid-game won't play until the game is restarted"
+                                );
+                                fw.close();
+                            }catch(IOException ignored){
+                            }
+                        }
+
+                        Core.app.openFolder(dataDirectory.child("floodcompat").absolutePath());
+                    }).width(240f);
                 }
-            }, "mp3", "ogg")
-        ).width(240f);
 
-        if(mobile) return;
-        t.row().button("@fc-open", Icon.linkSmall,
-            () -> {
-                Fi folder = dataDirectory.child("floodcompat");
-                if(!folder.exists()){
-                    folder.mkdirs();
+                tb.row();
+            })
+        );
+        t.rebuild();
+    }
 
-                    try{
-                        folder.child("readme.txt").file().createNewFile();
-                        var fw = folder.child("readme.txt").writer(false);
+    // a hack that lets us have buttons in the settings - doing table.button without this would have them be removed every rebuild()
+    public static class ButtonSetting extends SettingsMenuDialog.SettingsTable.Setting{
+        public Cons<SettingsMenuDialog.SettingsTable> builder;
 
-                        fw.write(
-                            "Place custom music files (.mp3 / .ogg) in this folder\nThe music will be loaded when the game starts and will play instead of the default music when playing Flood\n\nNote that music added mid-game won't play until the game is restarted"
-                        );
-                        fw.close();
-                    }catch(IOException ignored){}
-                }
+        public ButtonSetting(Cons<SettingsMenuDialog.SettingsTable> builder){
+            super(null);
 
-                Core.app.openFolder(dataDirectory.child("floodcompat").absolutePath());
-            }
-        ).width(240f);
+            this.builder = builder;
+        }
+
+        public void add(SettingsMenuDialog.SettingsTable t){
+            builder.get(t);
+        }
     }
 }
