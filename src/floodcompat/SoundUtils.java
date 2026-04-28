@@ -21,6 +21,7 @@ public class SoundUtils{
     public static void init(){
         Core.app.post(SoundUtils::reloadSound);
 
+        if(mobile) return;
         tryLoadMusic();
     }
 
@@ -50,10 +51,7 @@ public class SoundUtils{
 
     public static void tryLoadMusic(){
         Fi folder = dataDirectory.child("floodcompat");
-        if(!folder.exists()){
-            Log.warn("Failed to load custom music...");
-            return;
-        }
+        if(!folder.exists()) return;
 
         customMusic = new Seq<>();
         folder.walk(fi -> {
@@ -93,7 +91,7 @@ public class SoundUtils{
         });
 
         t.getSettings().add(
-            new ButtonSetting(tb -> {
+            new ButtonTable(tb -> {
                 tb.row().button("@fc-choose", Icon.downloadSmall, () ->
                     platform.showMultiFileChooser(file -> {
                         try{
@@ -147,10 +145,10 @@ public class SoundUtils{
     }
 
     // a hack that lets us have buttons in the settings - doing table.button without this would have them be removed every rebuild()
-    public static class ButtonSetting extends SettingsMenuDialog.SettingsTable.Setting{
+    public static class ButtonTable extends SettingsMenuDialog.SettingsTable.Setting{
         public Cons<SettingsMenuDialog.SettingsTable> builder;
 
-        public ButtonSetting(Cons<SettingsMenuDialog.SettingsTable> builder){
+        public ButtonTable(Cons<SettingsMenuDialog.SettingsTable> builder){
             super(null);
 
             this.builder = builder;

@@ -138,8 +138,14 @@ public class EditDrawers{
             String codes = e.message;
 
             int pos = codes.lastIndexOf('■');
-            if(pos > 0)
-                codes = codes.substring(0, pos).replaceAll("[]\\[]", "");
+            if(pos > 0){
+                codes = codes.substring(
+                    codes.substring(
+                        0, codes.indexOf('■')
+                    ).lastIndexOf('['),
+                    pos
+                ).replaceAll("[]\\[]", "");
+            }
 
             String[] buffer = codes.split("[:■]");
             if(buffer.length < dataMap.size) return;
@@ -173,7 +179,7 @@ public class EditDrawers{
                     public boolean isFlood(){
                         return(
                             draw
-                            && team.id == floodTeam
+                            && team == floodTeam
                         );
                     }
 
@@ -212,7 +218,7 @@ public class EditDrawers{
                         hit = 1f;
 
                         // flood does not have such stats
-                        if(!applied || team.id != floodTeam){
+                        if(!applied || team != floodTeam){
                             if(w.lightningChance > 0f){
                                 if(Mathf.chance(w.lightningChance)){
                                     Lightning.create(team, w.lightningColor, w.lightningDamage, x, y, bullet.rotation() + 180f, w.lightningLength);

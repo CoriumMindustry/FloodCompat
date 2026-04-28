@@ -1,6 +1,7 @@
 package floodcompat;
 
 import arc.*;
+import mindustry.game.*;
 import mindustry.gen.*;
 
 import java.nio.*;
@@ -10,7 +11,7 @@ import static mindustry.Vars.*;
 /** A class containing static cached setting values */
 public class SettingCache{
     public static boolean applied, draw, noEffects;
-    public static short floodTeam;
+    public static Team floodTeam;
 
     public static void init(){
         ui.settings.addCategory("@fc-category", Icon.waves, t -> {
@@ -34,6 +35,6 @@ public class SettingCache{
 
         ByteBuffer buffer = ByteBuffer.wrap(data);
 
-        floodTeam = (short) (buffer.get() & 0xff);
+        floodTeam = Team.get(buffer.get());
     }
 }
