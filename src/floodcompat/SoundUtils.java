@@ -260,7 +260,7 @@ public class SoundUtils{
 
                     rebuild();
                 }catch(Exception ex){
-                    ui.showErrorMessage("@fc-file-error");
+                    ui.showException("@fc-file-error", ex);
                 }
             }, "mp3", "ogg");
         }
