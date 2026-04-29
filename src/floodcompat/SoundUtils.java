@@ -225,7 +225,7 @@ public class SoundUtils{
                             e.add(img).size(iconSizeSmall).touchable(Touchable.enabled).scaling(Scaling.bounded).padBottom(2f);
                         }).growX().row();
                         s.table(u -> {
-                            String text = Strings.format("@ @", Iconc.pencil, file.nameWithoutExtension());
+                            String text = Strings.format("@ @", Iconc.pencil, file.name());
 
                             ImageButton img = new ImageButton(Icon.fileImage, Styles.flati);
                             img.resizeImage(iconSize);
@@ -241,6 +241,8 @@ public class SoundUtils{
                             u.add(img).scaling(Scaling.bounded).size(iconSize + scaledSize(text), iconSize).padTop(2f);
                         }).growX().row();
                     }).pad(1.5f).grow().width(canvas.maxWidth());
+
+                    table.row();
                 }
             }else table.table(tb -> tb.label(() -> "@empty").growX().center().style(Styles.outlineLabel).pad(20f)).width(canvas.maxWidth()).row();
 
@@ -249,14 +251,16 @@ public class SoundUtils{
         }
 
         public void addFile(){
+            Fi folder = dataDirectory.child("floodcompat");
+            if(!folder.exists())
+                folder.mkdirs();
+
             platform.showMultiFileChooser(file -> {
                 try{
                     Music music = new Music(file);
 
                     customMusic.add(music);
-                    file.copyTo(
-                        dataDirectory.child("floodcompat")
-                    );
+                    file.copyTo(folder);
 
                     rebuild();
                 }catch(Exception ex){
