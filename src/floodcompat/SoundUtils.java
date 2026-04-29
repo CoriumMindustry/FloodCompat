@@ -225,7 +225,7 @@ public class SoundUtils{
                             e.add(img).size(iconSizeSmall).touchable(Touchable.enabled).scaling(Scaling.bounded).padBottom(2f);
                         }).growX().row();
                         s.table(u -> {
-                            String text = Strings.format("@ @", Iconc.pencil, file.name());
+                            String text = Strings.format("@ @", Iconc.pencil, file.nameWithoutExtension());
 
                             ImageButton img = new ImageButton(Icon.fileImage, Styles.flati);
                             img.resizeImage(iconSize);
@@ -247,7 +247,7 @@ public class SoundUtils{
             }else table.table(tb -> tb.label(() -> "@empty").growX().center().style(Styles.outlineLabel).pad(20f)).width(canvas.maxWidth()).row();
 
             String text = Core.bundle.get("fc-open");
-            table.button(text, Icon.units, mobileUI::addFile).minWidth(scaledSize(text)).grow();
+            table.button(text, Icon.download, mobileUI::addFile).minWidth(scaledSize(text)).grow();
         }
 
         public void addFile(){
@@ -256,29 +256,40 @@ public class SoundUtils{
                 folder.mkdirs();
 
             platform.showMultiFileChooser(file -> {
-                try{
-                    Music music = new Music(file);
-
-                    customMusic.add(music);
-                    file.copyTo(folder);
-
-                    rebuild();
-                }catch(Exception ex){
-                    ui.showException("@fc-file-error", ex);
+                if(file.name().contains("audio:")){
+                    ui.showConfirm("@fc-music-warning", () ->
+                        load(folder, file)
+                    );
+                    return;
                 }
+
+                load(folder, file);
             }, "mp3", "ogg");
         }
 
+        public void load(Fi folder, Fi file){
+            try{
+                Music music = new Music(file);
+
+                customMusic.add(music);
+                file.copyTo(folder);
+
+                rebuild();
+            }catch(Exception ex){
+                ui.showException("@fc-file-error", ex);
+            }
+        }
+
         public void removeFile(Fi file){
-            file.delete();
             customMusic.remove(m -> {
                 try{
-                    Fi mfile = Reflect.get(Music.class, m, "file");
+                    Fi mfile = Reflect.get(m, "file");
                     return mfile == file;
                 }catch(Exception ignored){
                     return false;
                 }
             });
+            file.delete();
 
             rebuild();
         }
