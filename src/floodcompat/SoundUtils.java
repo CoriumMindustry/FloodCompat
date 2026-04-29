@@ -14,7 +14,6 @@ import mindustry.ui.*;
 import mindustry.ui.dialogs.*;
 
 import java.io.*;
-import java.nio.file.Files;
 
 import static mindustry.Vars.*;
 
@@ -127,7 +126,6 @@ public class SoundUtils{
 
                         if(!mobile){
                             try{
-                                folder.child("readme.txt").file().createNewFile();
                                 var fw = folder.child("readme.txt").writer(false);
 
                                 fw.write(
@@ -151,7 +149,7 @@ public class SoundUtils{
                     tb.row().button("@fc-music-reload", Icon.rotateSmall, () -> {
                         customMusic.each(Music::stop);
                         tryLoadMusic();
-                    });
+                    }).width(240f);
                 }
 
                 tb.row();
@@ -240,7 +238,7 @@ public class SoundUtils{
                             img.labelWrap(" " + text);
                             img.clicked(() ->
                                 ui.showConfirm("@fc-music-confirm", () -> {
-                                    rename(file);
+                                    removeFile(file);
                                     rebuild();
                                 })
                             );
@@ -263,34 +261,32 @@ public class SoundUtils{
                 folder.mkdirs();
 
             platform.showMultiFileChooser(file -> {
-                if(file.name().contains("audio:")){
-                    ui.showConfirm("@fc-music-warning", () ->
-                        load(folder, file)
+                if(Strings.canParsePositiveInt(file.name().substring(file.name().lastIndexOf(":") + 1))){
+                    ui.showTextInput("@fc-music-rename", "@fc-music-warning", "", s ->
+                        load(folder, file, s)
                     );
                     return;
                 }
 
-                load(folder, file);
+                load(folder, file, "");
             }, "mp3", "ogg");
         }
 
-        public void rename(Fi file){
-            ui.showTextInput(
-                "@fc-music-rename",
-                "@fc-music-name",
-                "Song",
-                n -> file.file().renameTo(
-                    new File(n.replaceAll("[^a-zA-Z0-9]", ""))
-                )
-            );
-        }
-
-        public void load(Fi folder, Fi file){
+        public void load(Fi folder, Fi file, String string){
             try{
-                Music music = new Music(file);
+                new Music(file); // test whether this is a valid music file
 
-                customMusic.add(music);
-                file.copyTo(folder);
+                Fi out = folder;
+                if(!string.isEmpty())
+                    out = folder.child(string + '.' + file.extension());
+
+                file.copyTo(out);
+
+                customMusic.add(
+                    new Music(
+                        out.isDirectory() ? file : out
+                    )
+                );
 
                 rebuild();
             }catch(Exception ex){
