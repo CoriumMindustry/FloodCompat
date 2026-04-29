@@ -123,7 +123,7 @@ public class EditDrawers{
             if(applied){
                 draw = (
                     (Core.settings.getBool("fc-draw")
-                        || Core.settings.getInt("fc-quality") == 2)
+                    || Core.settings.getInt("fc-quality") == 2)
                 );
                 noEffects = Core.settings.getInt("fc-quality") > 0;
 
