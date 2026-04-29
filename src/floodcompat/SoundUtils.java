@@ -14,11 +14,12 @@ import mindustry.ui.*;
 import mindustry.ui.dialogs.*;
 
 import java.io.*;
+import java.nio.file.Files;
 
 import static mindustry.Vars.*;
 
 public class SoundUtils{
-    public static Seq<Music> customMusic, vanillaDark, vanillaAmbient, vanillaBoss;
+    public static Seq<Music> customMusic = new Seq<>(), vanillaDark, vanillaAmbient, vanillaBoss;
     public static MobileUI mobileUI;
     public static Sound cachedSound;
     public static boolean applied;
@@ -56,7 +57,7 @@ public class SoundUtils{
         Fi folder = dataDirectory.child("floodcompat");
         if(!folder.exists()) return;
 
-        customMusic = new Seq<>();
+        customMusic.clear();
         folder.walk(fi -> {
             if(fi.extEquals("mp3") || fi.extEquals("ogg")){
                 try{
@@ -130,7 +131,7 @@ public class SoundUtils{
                                 var fw = folder.child("readme.txt").writer(false);
 
                                 fw.write(
-                                    "Place custom music files (.mp3 / .ogg) in this folder\nThe music will be loaded when the game starts and will play instead of the default music when playing Flood\n\nNote that music added mid-game won't play until the game is restarted"
+                                    "Place custom music files (.mp3 / .ogg) in this folder\nThe music will be loaded when the game starts and will play instead of the default music when playing Flood\n\nNote that music added mid-game won't play until the game is restarted or the reload button is pressed"
                                 );
                                 fw.close();
                             }catch(IOException ignored){
@@ -145,6 +146,13 @@ public class SoundUtils{
 
                     Core.app.openFolder(dataDirectory.child("floodcompat").absolutePath());
                 }).width(240f);
+
+                if(!mobile){ // unnecessary on mobile - it already adds/removes music on the fly
+                    tb.row().button("@fc-music-reload", Icon.rotateSmall, () -> {
+                        customMusic.each(Music::stop);
+                        tryLoadMusic();
+                    });
+                }
 
                 tb.row();
             })
@@ -196,7 +204,6 @@ public class SoundUtils{
         size = 60f,
         iconSize = size * 0.85f,
         iconSizeSmall = size * 0.5f,
-        iconSizeTiny = size * 0.33f,
         textWidth = 35f,
         charWidth = 10f;
 
@@ -214,7 +221,7 @@ public class SoundUtils{
                     table.table(Tex.button, s -> {
                         s.table(Tex.underline, e -> {
                             ImageButton img = new ImageButton(Icon.trash, Styles.flati);
-                            img.resizeImage(iconSizeTiny);
+                            img.resizeImage(iconSizeSmall);
                             img.clicked(() ->
                                 ui.showConfirm("@fc-music-confirm", () -> {
                                     removeFile(file);
@@ -227,13 +234,13 @@ public class SoundUtils{
                         s.table(u -> {
                             String text = Strings.format("@ @", Iconc.pencil, file.nameWithoutExtension());
 
-                            ImageButton img = new ImageButton(Icon.fileImage, Styles.flati);
+                            ImageButton img = new ImageButton(Icon.file, Styles.flati);
                             img.resizeImage(iconSize);
                             img.left();
                             img.labelWrap(" " + text);
                             img.clicked(() ->
                                 ui.showConfirm("@fc-music-confirm", () -> {
-                                    removeFile(file);
+                                    rename(file);
                                     rebuild();
                                 })
                             );
@@ -267,6 +274,17 @@ public class SoundUtils{
             }, "mp3", "ogg");
         }
 
+        public void rename(Fi file){
+            ui.showTextInput(
+                "@fc-music-rename",
+                "@fc-music-name",
+                "Song",
+                n -> file.file().renameTo(
+                    new File(n.replaceAll("[^a-zA-Z0-9]", ""))
+                )
+            );
+        }
+
         public void load(Fi folder, Fi file){
             try{
                 Music music = new Music(file);
@@ -281,15 +299,20 @@ public class SoundUtils{
         }
 
         public void removeFile(Fi file){
-            customMusic.remove(m -> {
+            Music music = customMusic.find(m -> {
                 try{
-                    Fi mfile = Reflect.get(m, "file");
-                    return mfile == file;
+                    Fi f = Reflect.get(m, "file");
+                    return f == null || !f.exists() || f.path().equals(file.path()) || f.name().equals(file.name());
                 }catch(Exception ignored){
                     return false;
                 }
             });
             file.delete();
+
+            if(music != null){
+                customMusic.remove(music);
+                music.stop();
+            }
 
             rebuild();
         }
