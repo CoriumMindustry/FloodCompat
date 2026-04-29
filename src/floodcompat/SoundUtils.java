@@ -230,7 +230,7 @@ public class SoundUtils{
                             e.add(img).size(iconSizeSmall).touchable(Touchable.enabled).scaling(Scaling.bounded).padBottom(2f);
                         }).growX().row();
                         s.table(u -> {
-                            String text = Strings.format("@ @", Iconc.pencil, file.nameWithoutExtension());
+                            String text = Strings.format("@ @", Iconc.cancel, file.nameWithoutExtension());
 
                             ImageButton img = new ImageButton(Icon.file, Styles.flati);
                             img.resizeImage(iconSize);
@@ -278,7 +278,7 @@ public class SoundUtils{
 
                 Fi out = folder;
                 if(!string.isEmpty())
-                    out = folder.child(string + '.' + file.extension());
+                    out = folder.child(string.replaceAll("[^a-zA-Z0-9]", "") + '.' + file.extension());
 
                 file.copyTo(out);
 
