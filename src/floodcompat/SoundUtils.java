@@ -58,7 +58,7 @@ public class SoundUtils{
 
         customMusic.clear();
         folder.walk(fi -> {
-            if(fi.extEquals("mp3") || fi.extEquals("ogg")){
+            if(fi.extEquals("mp3") || fi.extEquals("ogg") || (mobile && fi.extEquals("mus"))){
                 try{
                     customMusic.add(
                         new Music(fi)
@@ -276,15 +276,14 @@ public class SoundUtils{
             try{
                 new Music(file); // test whether this is a valid music file
 
-                Fi out = folder;
-                if(!string.isEmpty())
-                    out = folder.child(string.replaceAll("[^a-zA-Z0-9]", "") + '.' + file.extension());
+                String in = string.isEmpty() ? file.name() : string;
+                String ext = file.extension().isEmpty() ? ".mus" : '.' + file.extension();
+                Fi out = folder.child(in.replaceAll("[^a-zA-Z0-9]", "") + ext);
 
                 file.copyTo(out);
-
                 customMusic.add(
                     new Music(
-                        out.isDirectory() ? file : out
+                        out
                     )
                 );
 
