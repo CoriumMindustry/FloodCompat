@@ -57,12 +57,10 @@ public class EditDrawers{
     public static class PalCache{
         final String from;
         final int[] colors;
-        final int hash;
 
         public PalCache(Player from, int[] colors){
             this.from = from.coloredName();
             this.colors = colors;
-            hash = from.uuid().hashCode();
         }
     }
 
@@ -162,7 +160,7 @@ public class EditDrawers{
             );
 
             for(int i = 0; i < shared.length; i++){
-                if(shared[i] != null && shared[i].hash == e.player.uuid().hashCode()){
+                if(shared[i] != null && shared[i].from.equals(e.player.coloredName())){
                     shared[i] = new PalCache(e.player, colors);
                     return;
                 }
