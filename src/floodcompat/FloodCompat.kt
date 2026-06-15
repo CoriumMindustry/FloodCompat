@@ -2,6 +2,7 @@ package floodcompat
 
 import arc.*
 import arc.func.*
+import arc.graphics.*
 import arc.math.*
 import arc.math.geom.*
 import arc.struct.*
@@ -17,9 +18,10 @@ import java.nio.*
 
 // Based on old foo's implementation
 class FloodCompat : Mod() {
-    /** All the tiles that currently have effects drawn on top */
-    private val allTiles = ObjectSet<Tile>()
-    private val allTasks = Seq<Timer.Task>()
+    /** All anticreep instances to update */
+    private val anticreeps = Seq<AnticreepState>()
+    /** Tile states, for checking if they currently have effects drawn on top */
+    private var tileStates = Bits()
 
     /** Time of the last version fetch, in millis */
     private var lastFetch = 0L
@@ -108,6 +110,8 @@ class FloodCompat : Mod() {
                     )
                 )
             } )
+
+            Events.run(EventType.Trigger.update, { drawAnticreep() } )
         }
 
         netClient.addBinaryPacketHandler("flood-ac") { bytes: ByteArray ->
@@ -127,33 +131,18 @@ class FloodCompat : Mod() {
             val tiles = Seq<Tile>()
             Geometry.circle(tile.x.toInt(), tile.y.toInt(), rad) { cx: Int, cy: Int ->
                 val t = world.tile(cx, cy)
-                if (t != null && !allTiles.contains(t)) {
+                if (t != null && !tileStates.get(t.array())) {
+                    tileStates.set(t.array(), true)
                     tiles.add(t)
                 }
             }
-            allTiles.addAll(tiles)
 
-            val startTime = Time.millis()
-
-            allTasks.addAll(
-                Timer.schedule({
-                    val sizeMultiplier = 1 - (Time.millis() - startTime) / 1000f / time
-                    tiles.each { t: Tile ->
-                        Timer.schedule({
-                            Fx.lightBlock.at(
-                                t.getX(),
-                                t.getY(),
-                                Mathf.random(0.01f, 1.5f * sizeMultiplier),
-                                color
-                            )
-                        }, Mathf.random(1f))
-                    }
-                }, 0f, 1f, time.toInt()),
-
-                Timer.schedule({
-                    allTiles.removeAll(tiles)
-                    tiles.clear()
-                }, time)
+            anticreeps.add(
+                AnticreepState(
+                    tiles,
+                    color,
+                    time * 60f
+                )
             )
         }
 
@@ -166,18 +155,9 @@ class FloodCompat : Mod() {
 
             SoundUtils.cachedSound.at(x.toFloat(), y.toFloat(), 1f, 4f)
         }
-
-        Timer.schedule({
-            val it = allTasks.iterator()
-            while (it.hasNext()) {
-                val task = it.next()
-                if (task == null || !task.isScheduled)
-                    it.remove()
-            }
-        }, 0f, 5f)
     }
 
-    private fun versionFail(){
+    private fun versionFail() {
         newest = true
         ui.chatfrag.addMessage(Strings.format("[scarlet]@", Core.bundle.get("fc-fetch-fail")))
     }
@@ -188,8 +168,39 @@ class FloodCompat : Mod() {
         // Ask flood to resend the init packet
         Core.app.post( { Call.serverBinaryPacketReliable("flood-pr", ByteArray(0)) } )
 
-        allTiles.clear()
-        allTasks.each{ it.cancel() }
-        allTasks.clear()
+        tileStates = Bits(world.height() * world.width())
+        anticreeps.clear()
+    }
+
+    class AnticreepState(val tiles: Seq<Tile>, val color: Color, val lifetime: Float) {
+        val end: Double = state.tick + lifetime
+        var ticks: DoubleArray = DoubleArray(tiles.size)
+    }
+
+    private fun drawAnticreep() {
+        val it: MutableIterator<AnticreepState> = anticreeps.iterator()
+        while (it.hasNext()) {
+            val ac = it.next()
+            if (state.tick > ac.end) {
+                ac.tiles.each { t -> tileStates.set(t.array(), false) }
+                it.remove()
+                return
+            }
+
+            val size = (ac.end - state.tick).toFloat() / ac.lifetime
+            for (i in 0 ..< ac.tiles.size) {
+                if (state.tick > ac.ticks[i]) {
+                    ac.ticks[i] = state.tick + Mathf.random(60f)
+
+                    val t: Tile = ac.tiles.get(i)
+                    Fx.lightBlock.at(
+                        t.getX(),
+                        t.getY(),
+                        Mathf.random(0.01f, 1.5f * size),
+                        ac.color
+                    )
+                }
+            }
+        }
     }
 }

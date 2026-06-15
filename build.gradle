@@ -7,7 +7,7 @@ import arc.files.*
 import arc.func.*
 
 buildscript {
-    ext.mindustryVersion = 'v157'
+    ext.mindustryVersion = 'v158.1'
     repositories {
         mavenCentral()
         maven { url "https://www.jitpack.io" }
