@@ -28,6 +28,8 @@ class FloodCompat : Mod() {
     /** Whether the mod's up to date */
     private var newest = false
 
+    private lateinit var version: ByteArray
+
     override fun init() {
         Log.info("Flood Compatibility loaded!")
 
@@ -35,6 +37,17 @@ class FloodCompat : Mod() {
             SettingCache.init()
             EditDrawers.init()
             SoundUtils.init()
+
+            val split = mods.getMod(this.javaClass).meta.version.split('.')
+            val buffer = ByteBuffer.allocate(split.size + 1).put(split.size.toByte())
+            for (str in split) {
+                buffer.put(
+                    Strings.parseInt(
+                        str
+                    ).toByte()
+                )
+            }
+            version = buffer.array()
 
             SettingCache.applied = false
         }
@@ -105,8 +118,11 @@ class FloodCompat : Mod() {
 
                 Call.serverBinaryPacketReliable(
                     "flood-rs",
-                    byteArrayOf(
-                        range.toByte()
+                    (
+                        version +
+                        byteArrayOf(
+                            range.toByte()
+                        )
                     )
                 )
             } )
@@ -115,16 +131,16 @@ class FloodCompat : Mod() {
         }
 
         netClient.addBinaryPacketHandler("flood-ac") { bytes: ByteArray ->
-            if (!SettingCache.applied || bytes.size < 10 || Core.settings.getInt("fc-quality") == 2) return@addBinaryPacketHandler // This can eat some anticreep packets right when the player joins, but it's not a big deal
+            if (!SettingCache.applied || bytes.size < 14 || Core.settings.getInt("fc-quality") == 2) return@addBinaryPacketHandler // This can eat some anticreep packets right when the player joins, but it's not a big deal
 
             val buffer = ByteBuffer.wrap(bytes)
 
             val pos = buffer.getInt()
-            val time = buffer.getFloat()
+            val end = buffer.getDouble()
             val team = (buffer.get().toInt() and 0xff)
             val rad = (buffer.get().toInt() and 0xff)
 
-            if (pos <= 0 || rad <= 0 || time <= 0 || team <= 0) return@addBinaryPacketHandler
+            if (pos <= 0 || rad <= 0 || end <= 0 || team <= 0) return@addBinaryPacketHandler
             val tile = world.tile(pos) ?: return@addBinaryPacketHandler
             val color = Team.get(team).color
 
@@ -141,7 +157,7 @@ class FloodCompat : Mod() {
                 AnticreepState(
                     tiles,
                     color,
-                    time * 60f
+                    end
                 )
             )
         }
@@ -172,9 +188,9 @@ class FloodCompat : Mod() {
         anticreeps.clear()
     }
 
-    class AnticreepState(val tiles: Seq<Tile>, val color: Color, val lifetime: Float) {
-        val end: Double = state.tick + lifetime
-        var ticks: DoubleArray = DoubleArray(tiles.size)
+    class AnticreepState(val tiles: Seq<Tile>, val color: Color, val end: Double) {
+        val lifetime: Float = (end - state.tick).toFloat()
+        var ticks: FloatArray = FloatArray(tiles.size)
     }
 
     private fun drawAnticreep() {
@@ -189,8 +205,9 @@ class FloodCompat : Mod() {
 
             val size = (ac.end - state.tick).toFloat() / ac.lifetime
             for (i in 0 ..< ac.tiles.size) {
-                if (state.tick > ac.ticks[i]) {
-                    ac.ticks[i] = state.tick + Mathf.random(60f)
+                ac.ticks[i] -= Time.delta
+                if (ac.ticks[i] <= 0f) {
+                    ac.ticks[i] = Mathf.random(60f)
 
                     val t: Tile = ac.tiles.get(i)
                     Fx.lightBlock.at(

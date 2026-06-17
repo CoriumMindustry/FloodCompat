@@ -3,7 +3,7 @@ name: "floodcompat"
 author: "io community"
 main: "floodcompat.FloodCompat"
 description: "Improves your experience on the official [accent]io[] [blue] Flood[] server."
-version: "2.7"
+version: "2.7.1"
 minGameVersion: 158.1
 java: true
 hidden: true
