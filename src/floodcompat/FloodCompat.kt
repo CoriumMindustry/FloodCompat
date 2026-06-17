@@ -38,7 +38,7 @@ class FloodCompat : Mod() {
             EditDrawers.init()
             SoundUtils.init()
 
-            val split = mods.getMod(this.javaClass).meta.version.split('.')
+            val split = mods.getMod(this.javaClass).meta.version.replace("[^0-9.]".toRegex(), "").split('.')
             val buffer = ByteBuffer.allocate(split.size + 1).put(split.size.toByte())
             for (str in split) {
                 buffer.put(
