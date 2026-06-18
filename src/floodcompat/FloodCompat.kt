@@ -23,9 +23,9 @@ class FloodCompat : Mod() {
     /** Tile states, for checking if they currently have effects drawn on top */
     private var tileStates = Bits()
 
-    /** Time of the last version fetch, in millis */
+    /** Last version fetch time, in millis */
     private var lastFetch = 0L
-    /** Whether the mod's up to date */
+    /** Whether the mod is up to date */
     private var newest = false
 
     private var version: ByteArray = byteArrayOf()
@@ -54,8 +54,8 @@ class FloodCompat : Mod() {
             onWorldLoad() // Mod was initialized after loading a world (realistically just foo's downloading the mod at runtime)
 
         // ignore this packet if stuff was already applied, probably sent twice due to us asking the server
-        netClient.addBinaryPacketHandler("flood") {
-            bytes: ByteArray -> SettingCache.load(bytes)
+        netClient.addBinaryPacketHandler("flood") { bytes: ByteArray ->
+            SettingCache.load(bytes)
             if (SettingCache.applied) return@addBinaryPacketHandler
 
             Log.debug("Flood responded")
@@ -100,9 +100,9 @@ class FloodCompat : Mod() {
             } else if (!newest) ui.chatfrag.addMessage(Strings.format("[scarlet]@", Core.bundle.get("fc-outdated")))
 
             // Respond to flood so it would know we're using the mod
-            Core.app.post( {
+            Core.app.post {
                 var range = Core.settings.getInt("fc-culling", -1)
-                if(Core.settings.getInt("fc-quality", 0) >= 2)
+                if (Core.settings.getInt("fc-quality", 0) >= 2)
                     range = 40
 
                 Call.serverBinaryPacketReliable(
@@ -114,9 +114,9 @@ class FloodCompat : Mod() {
                         )
                     )
                 )
-            } )
+            }
 
-            Events.run(EventType.Trigger.update, { drawAnticreep() } )
+            Events.run(EventType.Trigger.update) { drawAnticreep() }
         }
 
         netClient.addBinaryPacketHandler("flood-ac") { bytes: ByteArray ->
@@ -163,7 +163,7 @@ class FloodCompat : Mod() {
     }
 
     private fun getLocalVersion(): ByteArray {
-        if(version.isEmpty()) {
+        if (version.isEmpty()) {
             val split = mods.getMod(this.javaClass).meta.version.replace("[^0-9.]".toRegex(), "").split('.')
             val buffer = ByteBuffer.allocate(split.size + 1).put(split.size.toByte())
             for (str in split) {
@@ -188,7 +188,7 @@ class FloodCompat : Mod() {
     private fun onWorldLoad() {
         Log.debug("Sent flood")
         // Ask flood to resend the init packet
-        Core.app.post( { Call.serverBinaryPacketReliable("flood-pr", ByteArray(0)) } )
+        Core.app.post { Call.serverBinaryPacketReliable("flood-pr", ByteArray(0)) }
 
         tileStates = Bits(world.height() * world.width())
         anticreeps.clear()
