@@ -28,7 +28,7 @@ class FloodCompat : Mod() {
     /** Whether the mod's up to date */
     private var newest = false
 
-    private lateinit var version: ByteArray
+    private var version: ByteArray = byteArrayOf()
 
     override fun init() {
         Log.info("Flood Compatibility loaded!")
@@ -37,17 +37,6 @@ class FloodCompat : Mod() {
             SettingCache.init()
             EditDrawers.init()
             SoundUtils.init()
-
-            val split = mods.getMod(this.javaClass).meta.version.replace("[^0-9.]".toRegex(), "").split('.')
-            val buffer = ByteBuffer.allocate(split.size + 1).put(split.size.toByte())
-            for (str in split) {
-                buffer.put(
-                    Strings.parseInt(
-                        str
-                    ).toByte()
-                )
-            }
-            version = buffer.array()
 
             SettingCache.applied = false
         }
@@ -119,7 +108,7 @@ class FloodCompat : Mod() {
                 Call.serverBinaryPacketReliable(
                     "flood-rs",
                     (
-                        version +
+                        getLocalVersion() +
                         byteArrayOf(
                             range.toByte()
                         )
@@ -171,6 +160,23 @@ class FloodCompat : Mod() {
 
             SoundUtils.cachedSound.at(x.toFloat(), y.toFloat(), 1f, 4f)
         }
+    }
+
+    private fun getLocalVersion(): ByteArray {
+        if(version.isEmpty()) {
+            val split = mods.getMod(this.javaClass).meta.version.replace("[^0-9.]".toRegex(), "").split('.')
+            val buffer = ByteBuffer.allocate(split.size + 1).put(split.size.toByte())
+            for (str in split) {
+                buffer.put(
+                    Strings.parseInt(
+                        str
+                    ).toByte()
+                )
+            }
+            version = buffer.array()
+        }
+
+        return version
     }
 
     private fun versionFail() {
