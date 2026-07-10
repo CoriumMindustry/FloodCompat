@@ -7,6 +7,7 @@ import arc.graphics.*;
 import arc.graphics.g2d.*;
 import arc.input.*;
 import arc.math.*;
+import arc.scene.style.*;
 import arc.scene.ui.*;
 import arc.scene.ui.layout.*;
 import arc.struct.*;
@@ -17,16 +18,18 @@ import mindustry.entities.*;
 import mindustry.game.*;
 import mindustry.game.EventType.*;
 import mindustry.gen.*;
+import mindustry.graphics.*;
 import mindustry.mod.*;
 import mindustry.type.*;
 import mindustry.ui.dialogs.*;
 import mindustry.world.*;
 import mindustry.world.blocks.defense.*;
 
+import java.util.Objects;
+
 import static arc.math.Angles.*;
 import static arc.graphics.g2d.Draw.*;
 import static mindustry.Vars.*;
-import static mindustry.content.Blocks.*;
 
 import static floodcompat.SettingCache.*;
 
@@ -64,27 +67,27 @@ public class EditDrawers{
         }
     }
 
-    public static final OrderedMap<Block, Data> dataMap = OrderedMap.of(
-        scrapWall, new Data(0.518f, 0.725f, 0.82f, 0.69f),
-        titaniumWall, new Data(0.388f, 0.682f, 0.82f, 0.75f),
-        thoriumWall, new Data(0.286f, 0.616f, 0.769f, 0.75f),
-        phaseWall, new Data(0.208f, 0.573f, 0.741f, 0.75f),
-        surgeWall, new Data(0.153f, 0.525f, 0.702f, 0.8f),
-        reinforcedSurgeWall, new Data(0.106f, 0.478f, 0.651f, 0.8f),
-        plastaniumWall, new Data(0.059f, 0.435f, 0.612f, 0.8f),
-        berylliumWall, new Data(0.035f, 0.4f, 0.569f, 0.85f),
-        tungstenWall, new Data(0.024f, 0.361f, 0.522f, 0.85f),
-        carbideWall, new Data(0f, 0.329f, 0.478f, 0.9f)
+    public static final Seq<Data> dataMap = Seq.with(
+        new Data(0.518f, 0.725f, 0.82f, 0.69f),
+        new Data(0.388f, 0.682f, 0.82f, 0.75f),
+        new Data(0.286f, 0.616f, 0.769f, 0.75f),
+        new Data(0.208f, 0.573f, 0.741f, 0.75f),
+        new Data(0.153f, 0.525f, 0.702f, 0.8f),
+        new Data(0.106f, 0.478f, 0.651f, 0.8f),
+        new Data(0.059f, 0.435f, 0.612f, 0.8f),
+        new Data(0.035f, 0.4f, 0.569f, 0.85f),
+        new Data(0.024f, 0.361f, 0.522f, 0.85f),
+        new Data(0f, 0.329f, 0.478f, 0.9f)
     );
 
     public static void init(){
-        Seq<Block> blocks = dataMap.keys().toSeq();
-        for(int i = 0; i < blocks.size; i++){
-            String setting = "fc-col-" + blocks.get(i).name;
-            if(!Core.settings.has(setting)) continue;
+        IntSeq saved = Core.settings.getJson("fc-main-pal", IntSeq.class, Integer.class, IntSeq::new);
+        for(int i = 0; i < saved.size; i++){
+            if(i >= dataMap.size)
+                dataMap.add(new Data(1f, 1f, 1f, 1f));
 
-            dataMap.get(blocks.get(i)).color.set(
-                Core.settings.getInt(setting)
+            dataMap.get(i).color.set(
+                saved.get(i)
             );
         }
 
@@ -119,12 +122,7 @@ public class EditDrawers{
 
         Events.run(Trigger.update, () -> {
             if(applied){
-                draw = (
-                    (Core.settings.getBool("fc-draw")
-                    || Core.settings.getInt("fc-quality") == 2)
-                );
-                noEffects = Core.settings.getInt("fc-quality") > 0;
-
+                draw = Core.settings.getBool("fc-draw");
                 return;
             }
 
@@ -168,152 +166,60 @@ public class EditDrawers{
 
             shared[++lastPosition % shared.length] = new PalCache(e.player, colors);
         });
+    }
 
-        Vars.content.blocks().each(b -> {
-            if(b instanceof Wall w && dataMap.containsKey(w)){
-                w.buildType = () -> w.new WallBuild(){
-                    final Data flood = dataMap.get(w);
+    public static void reloadClear(){
+        draw = Core.settings.getBool("fc-draw");
 
-                    public boolean isFlood(){
-                        return(
-                            draw
-                            && team == floodTeam
-                        );
-                    }
+        reload();
+        for(int i = 0; i < floodBlocks.length; i++)
+            floodBlocks[i].destroyEffect = dataMap.get(i).effect;
+    }
 
-                    @Override
-                    public void draw(){
-                        if(isFlood()){
-                            Draw.color(flood.color);
-                            Fill.rect(x, y, w.region.width * w.region.scl() * xscl, w.region.height * w.region.scl() * xscl);
-                            Draw.reset();
+    public static void reload(){
+        while(dataMap.size < floodBlocks.length)
+            dataMap.add(new Data(1f, 1f, 1f, 1f));
 
-                            return;
-                        }
+        if(draw){
+            wasDrawing = true;
 
-                        super.draw();
-                    }
+            syncAllRegions();
+            recacheChunks();
+        }else{
+            if(wasDrawing){
+                for(int i = 0; i < floodBlocks.length; i++){
+                    Block b = floodBlocks[i];
 
-                    @Override
-                    public void drawTeam(){
-                        if(isFlood()) return;
+                    b.region = floodTex[i];
+                    b.destroyEffect = Fx.none;
+                }
 
-                        super.drawTeam();
-                    }
+                recacheChunks();
 
-                    @Override
-                    public boolean collision(Bullet bullet){
-                        boolean wasDead = health <= 0;
-
-                        float damage = bullet.type.buildingDamage(bullet);
-                        if(!bullet.type.pierceArmor)
-                            damage = Damage.applyArmor(damage, w.armor);
-
-                        damage(bullet, bullet.team, damage);
-                        if(health <= 0 && !wasDead)
-                            Events.fire(new BuildingBulletDestroyEvent(this, bullet));
-
-                        hit = 1f;
-
-                        // flood does not have such stats
-                        if(!applied || team != floodTeam){
-                            if(w.lightningChance > 0f){
-                                if(Mathf.chance(w.lightningChance)){
-                                    Lightning.create(team, w.lightningColor, w.lightningDamage, x, y, bullet.rotation() + 180f, w.lightningLength);
-                                    w.lightningSound.at(tile, Mathf.random(0.9f, 1.1f));
-                                }
-                            }
-
-                            if(w.chanceDeflect > 0f){
-                                if(bullet.vel.len() <= 0.1f || !bullet.type.reflectable) return true;
-
-                                if(!Mathf.chance(w.chanceDeflect / bullet.damage())) return true;
-
-                                w.deflectSound.at(tile, Mathf.random(0.9f, 1.1f));
-
-                                bullet.trns(-bullet.vel.x, -bullet.vel.y);
-
-                                float penX = Math.abs(x - bullet.x), penY = Math.abs(y - bullet.y);
-
-                                if(penX > penY){
-                                    bullet.vel.x *= -1;
-                                }else{
-                                    bullet.vel.y *= -1;
-                                }
-
-                                bullet.owner = this;
-                                bullet.team = team;
-                                bullet.time += 1f;
-
-                                return false;
-                            }
-                        }
-
-                        return true;
-                    }
-
-                    @Override
-                    public void killed(){
-                        dead = true;
-                        Events.fire(new EventType.BlockDestroyEvent(tile));
-
-                        if(!isFlood())
-                            block.destroySound.at(tile, Mathf.random(block.destroyPitchMin, block.destroyPitchMax));
-
-                        onDestroyed();
-                        if(tile != emptyTile)
-                            tile.remove();
-
-                        remove();
-                        afterDestroyed();
-                    }
-
-                    @Override
-                    public void onDestroyed(){
-                        float explosiveness = block.baseExplosiveness;
-                        float flammability = 0f;
-                        float power = 0f;
-
-                        if(block.hasItems){
-                            for(Item item : content.items()){
-                                int amount = Math.min(items.get(item), explosionItemCap());
-                                explosiveness += item.explosiveness * amount;
-                                flammability += item.flammability * amount;
-                                power += item.charge * Mathf.pow(amount, 1.1f) * 150f;
-                            }
-                        }
-
-                        if(block.hasLiquids){
-                            flammability += liquids.sum((liquid, amount) -> liquid.flammability * amount / 2f);
-                            explosiveness += liquids.sum((liquid, amount) -> liquid.explosiveness * amount / 2f);
-                        }
-
-                        if(block.consPower != null && block.consPower.buffered)
-                            power += this.power.status * block.consPower.capacity;
-
-                        if(block.hasLiquids && state.rules.damageExplosions)
-                            liquids.each(this::splashLiquid);
-
-                        //cap explosiveness so fluid tanks/vaults don't instakill units
-                        Damage.dynamicExplosion(
-                            x, y, flammability * block.flammabilityScale, explosiveness * 3.5f * block.explosivenessScale, power, tilesize * block.size / 2f, state.rules.damageExplosions, !isFlood(), null,
-                            noEffects ? Fx.none : isFlood() ? flood.effect : block.destroyEffect,
-                            isFlood() ? 0f : block.baseShake
-                        );
-
-                        if(!isFlood() && !noEffects && block.createRubble && !floor().solid && !floor().isLiquid)
-                            Effect.rubble(x, y, block.size);
-                    }
-                };
+                wasDrawing = false;
             }
-        });
+        }
+    }
+
+    public static void recacheChunks(){
+        int sx = world.width() / BlockRenderer.chunkSize, sy = world.height() / BlockRenderer.chunkSize;
+        for(int x = 0; x < sx; x++)
+            for(int y = 0; y < sy; y++)
+                renderer.blocks.cacheChunk(floodBlocks[0].buildingCacheLayer.ordinal(), x, y);
     }
 
     // cache for chat-shared palettes
     final static PalCache[] shared = new PalCache[Core.settings.getInt("fc-array", 5)];
     static int lastPosition = -1;
     // the main "window" for the editor
-    final static BaseDialog colorEditor = new BaseDialog("@fc-editor");
+    final static BaseDialog colorEditor = new BaseDialog("@fc-editor"){
+        @Override
+        public void hide(){
+            super.hide();
+
+            recacheChunks();
+        }
+    };
     // secondary "window" for save profiles
     final static BaseDialog saves = new BaseDialog("@fc-saves");
 
@@ -325,6 +231,7 @@ public class EditDrawers{
     final static Color newColor = new Color();
     // selected block reference
     static Block selected;
+    static int selectedIndex;
     // random string cache
     static String save;
     
@@ -360,15 +267,15 @@ public class EditDrawers{
         float width = Core.graphics.getWidth() / Scl.scl(220) > 4 ? 220f : 130f;
 
         if(selected == null){
-            Seq<Block> data = dataMap.keys().toSeq();
             colorEditor.fill(t -> {
-                for(int i = 0; i < data.size; i++){
+                for(int i = 0; i < floodBlocks.length; i++){
                     if(i % columns == 0) t.row();
 
                     int arr = i;
-                    t.button(data.get(i).emoji(), () -> {
-                        selected = data.get(arr);
-                        newColor.set(dataMap.get(selected).color);
+                    t.button(new TextureRegionDrawable(floodBlocks[i].region), () -> {
+                        selected = floodBlocks[arr];
+                        selectedIndex = arr;
+                        newColor.set(dataMap.get(arr).color);
 
                         rebuild();
                     }).size(160f, 60f);
@@ -396,8 +303,8 @@ public class EditDrawers{
                             Core.settings.putJson("fc-saveNames", String.class, saveNames);
 
                             saveData.clear();
-                            for(int i = 0; i < data.size; i++)
-                                saveData.add(dataMap.get(data.get(i)).color.rgba());
+                            for(int i = 0; i < dataMap.size; i++)
+                                saveData.add(dataMap.get(i).color.rgba());
                             Core.settings.putJson("fc-palette-" + save, Integer.class, saveData);
 
                             ui.showInfoFade(Core.bundle.format("fc-saved", save));
@@ -439,12 +346,15 @@ public class EditDrawers{
                                     saveData.addAll(
                                         Core.settings.getJson("fc-palette-" + string, IntSeq.class, Integer.class, IntSeq::new)
                                     );
+                                    Core.settings.putJson("fc-main-pal", Integer.class, saveData);
 
-                                    for(int s = 0; s < data.size; s++){
-                                        Core.settings.put("fc-col-" + data.get(s).name, saveData.get(s));
-                                        dataMap.get(data.get(s)).color.set(saveData.get(s));
+                                    for(int s = 0; s < saveData.size; s++){
+                                        if(s >= dataMap.size)
+                                            dataMap.add(new Data(1f, 1f, 1f, 1f));
+                                        dataMap.get(s).color.set(saveData.get(s));
                                     }
 
+                                    syncAllRegions();
                                     rebuild();
 
                                     ui.showInfoFade(Core.bundle.format("fc-loaded", string));
@@ -505,7 +415,7 @@ public class EditDrawers{
                     saves.fill(nt -> nt.top().marginTop(40f).add("@fc-select").width(220f));
                     saves.fill(nt -> nt.bottom().marginBottom(buttonHeight).button(Icon.left, saves::hide).width(uiSize));
                     saves.fill(tb -> {
-                        if(Structs.count(shared, s -> s != null) <= 0)
+                        if(Structs.count(shared, Objects::nonNull) <= 0)
                             tb.add("@fc-no-saves").width(220f).row();
                         else{
                             Table worker = new Table();
@@ -516,7 +426,11 @@ public class EditDrawers{
                                 worker.button(cache.from, () ->
                                     ui.showConfirm(Core.bundle.format("fc-shared-confirm", cache.from), () -> {
                                         for(int in = 0; in < cache.colors.length; in++)
-                                            Core.settings.put("fc-col-" + data.get(in).name, dataMap.get(data.get(in)).color.set(cache.colors[in]).rgba());
+                                            dataMap.get(in).color.set(cache.colors[in]);
+
+                                        writeDataMap();
+                                        syncAllRegions();
+
                                         ui.showInfoFade("@fc-import-success");
                                     })
                                 ).width(buttonHeight + (10f * Strings.stripColors(cache.from).length()));
@@ -551,20 +465,25 @@ public class EditDrawers{
                         codes = codes.substring(0, pos).replaceAll("[]\\[]", "");
 
                     String[] buffer = codes.split("[:■]");
-                    if(buffer.length < data.size){
+                    if(buffer.length < dataMap.size){
                         ui.showErrorMessage("@fc-import-fail");
                         return;
                     }
 
                     ui.showConfirm("@fc-import-confirm", () -> {
-                        for(int i = 0; i < data.size; i++)
-                            Core.settings.put("fc-col-" + data.get(i).name, dataMap.get(data.get(i)).color.set(Color.valueOf(buffer[i])).rgba());
+                        for(int i = 0; i < dataMap.size; i++)
+                            dataMap.get(i).color.set(Color.valueOf(buffer[i]));
+
+                        writeDataMap();
+                        syncAllRegions();
+                        rebuild();
+
                         ui.showInfoFade("@fc-import-success");
                     });
                 }).size(width, buttonHeight);
                 t.button(Icon.copy, () -> {
-                    for(int i = 0; i < data.size; i++)
-                        uiBuilder.append("[#").append(dataMap.get(data.get(i)).color.toString()).append("]■");
+                    for(int i = 0; i < dataMap.size; i++)
+                        uiBuilder.append("[#").append(dataMap.get(i).color.toString()).append("]■");
                     Core.app.setClipboardText(uiBuilder.toString());
 
                     uiBuilder.setLength(0);
@@ -572,12 +491,13 @@ public class EditDrawers{
                 }).size(width, buttonHeight);
                 t.button(Icon.trash, () ->
                     ui.showConfirm("@fc-confirm-all", () -> {
-                        for(int i = 0; i < data.size; i++){
-                            Core.settings.remove("fc-col-" + data.get(i).name);
-                            Data vars = dataMap.get(data.get(i));
+                        Core.settings.remove("fc-main-pal");
+                        for(int i = 0; i < dataMap.size; i++){
+                            Data vars = dataMap.get(i);
                             vars.reset();
                         }
 
+                        syncAllRegions();
                         rebuild();
                     })
                 ).size(width, buttonHeight);
@@ -587,16 +507,21 @@ public class EditDrawers{
                         if(first.a > last.a)
                             first.a = last.a;
 
-                        for(int i = 0; i < data.size; i++){
-                            Color out = i == 0 ? first : i == data.size - 1 ? last : null;
+                        for(int i = 0; i < dataMap.size; i++){
+                            Color out = i == 0 ? first : i == dataMap.size - 1 ? last : null;
 
                             if(out == null){
                                 out = new Color(first);
-                                out.lerp(last, (float) i / data.size);
+                                out.lerp(last, (float) i / dataMap.size);
                             }
 
-                            Core.settings.put("fc-col-" + data.get(i).name, dataMap.get(data.get(i)).color.set(out).rgba());
+                            dataMap.get(i).color.set(out).rgba();
                         }
+
+                        writeDataMap();
+                        syncAllRegions();
+
+                        rebuild();
                     })
                 ).size(width, buttonHeight);
             });
@@ -629,20 +554,23 @@ public class EditDrawers{
                 rebuild();
             }).size(width, buttonHeight);
             t.button(Icon.ok, () -> {
-                if(dataMap.get(selected).rgba != newColor.rgba())
-                    Core.settings.put("fc-col-" + selected.name, newColor.rgba());
+                int rgba = dataMap.get(selectedIndex).color.rgba();
+                dataMap.get(selectedIndex).color.set(newColor);
+                if(rgba != newColor.rgba()){
+                    writeDataMap();
+                    syncRegion(selectedIndex);
+                }
 
-                dataMap.get(selected).color.set(newColor);
                 selected = null;
-
                 rebuild();
             }).size(width, buttonHeight);
             t.button(Icon.trash, () ->
                 ui.showConfirm("@fc-confirm", () -> {
-                    Core.settings.remove("fc-col-" + selected.name);
-
-                    Data vars = dataMap.get(selected);
+                    Data vars = dataMap.get(selectedIndex);
                     vars.reset();
+
+                    writeDataMap();
+                    syncRegion(selectedIndex);
                     
                     newColor.set(vars.color);
                     rebuild();
@@ -729,6 +657,13 @@ public class EditDrawers{
         }
     }
 
+    private static IntSeq n = new IntSeq();
+    public static void writeDataMap(){
+        n.clear();
+        dataMap.each(d -> n.add(d.color.rgba()));
+        Core.settings.putJson("fc-main-pal", Integer.class, n);
+    }
+
     static void updatePreview(){
         preview.setColor(newColor);
 
@@ -741,6 +676,21 @@ public class EditDrawers{
                 updateFields();
             }catch(Throwable ignored){}
         }).size(spacerSize, uiHeight);
+    }
+
+    static void syncAllRegions(){
+        for(int i = 0; i < floodBlocks.length; i++)
+            syncRegion(i);
+    }
+
+    static void syncRegion(int index){
+        floodBlocks[index].region = new TextureRegion(
+            new Texture(
+                new Pixmap(32, 32){{
+                    fill(dataMap.get(index).color);
+                }}
+            )
+        );
     }
 
     public static Color randomColor(){

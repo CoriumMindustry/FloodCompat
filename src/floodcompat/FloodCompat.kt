@@ -30,13 +30,17 @@ class FloodCompat : Mod() {
 
     private var version: ByteArray = byteArrayOf()
 
+    fun initModules() {
+        SettingCache.init()
+        EditDrawers.init()
+        SoundUtils.init()
+    }
+
     override fun init() {
         Log.info("Flood Compatibility loaded!")
 
         Events.on(EventType.ClientLoadEvent::class.java) {
-            SettingCache.init()
-            EditDrawers.init()
-            SoundUtils.init()
+            initModules()
 
             SettingCache.applied = false
         }
@@ -50,8 +54,10 @@ class FloodCompat : Mod() {
             SoundUtils.setVanilla()
         }
 
-        if (!state.isMenu)
+        if (!state.isMenu) {
+            initModules()
             onWorldLoad() // Mod was initialized after loading a world (realistically just foo's downloading the mod at runtime)
+        }
 
         // ignore this packet if stuff was already applied, probably sent twice due to us asking the server
         netClient.addBinaryPacketHandler("flood") { bytes: ByteArray ->

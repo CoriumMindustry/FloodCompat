@@ -88,6 +88,7 @@ public class SoundUtils{
         }
     }
 
+    private static final FileChooser.FileChooserParams params = FileChooser.open("mp3", "ogg");
     public static void addSettings(SettingsMenuDialog.SettingsTable t){
         t.checkPref("fc-customs", false, reload -> {
             if(reload) reloadSound();
@@ -96,7 +97,7 @@ public class SoundUtils{
         t.getSettings().add(
             new ButtonTable(tb -> {
                 tb.row().button("@fc-choose", Icon.downloadSmall, () ->
-                    platform.showMultiFileChooser(file -> {
+                    params.submit(file -> {
                         try{
                             Sound sound = new Sound(file);
 
@@ -116,7 +117,7 @@ public class SoundUtils{
                             cachedSound = Sounds.wind3;
                             Core.settings.put("fc-wind3-path", "null");
                         }
-                    }, "mp3", "ogg")
+                    })
                 ).width(240f);
 
                 tb.row().button("@fc-open", Icon.linkSmall, () -> {
@@ -260,7 +261,7 @@ public class SoundUtils{
             if(!folder.exists())
                 folder.mkdirs();
 
-            platform.showMultiFileChooser(file -> {
+            params.submit(file -> {
                 if(Strings.canParsePositiveInt(file.name().substring(file.name().lastIndexOf(":") + 1))){
                     ui.showTextInput("@fc-music-rename", "@fc-music-warning", "", s ->
                         load(folder, file, s)
@@ -269,7 +270,7 @@ public class SoundUtils{
                 }
 
                 load(folder, file, "");
-            }, "mp3", "ogg");
+            });
         }
 
         public void load(Fi folder, Fi file, String string){
