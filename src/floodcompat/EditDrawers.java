@@ -147,8 +147,20 @@ public class EditDrawers{
             if(buffer.length < dataMap.size) return;
 
             int[] colors = new int[buffer.length];
-            for(int i = 0; i < buffer.length; i++)
-                colors[i] = Color.valueOf(buffer[i]).rgba();
+            for(int i = 0; i < buffer.length; i++){
+                try{
+                    colors[i] = Color.valueOf(buffer[i]).rgba();
+                }catch(Exception ignored){
+                    ui.showInfoFade(
+                        Core.bundle.format(
+                            "fc-shared-fail",
+                            e.player.coloredName()
+                        )
+                    );
+
+                    return;
+                }
+            }
 
             ui.showInfoFade(
                 Core.bundle.format(
@@ -172,8 +184,6 @@ public class EditDrawers{
         draw = Core.settings.getBool("fc-draw");
 
         reload();
-        for(int i = 0; i < floodBlocks.length; i++)
-            floodBlocks[i].destroyEffect = dataMap.get(i).effect;
     }
 
     public static void reload(){
@@ -185,6 +195,9 @@ public class EditDrawers{
 
             syncAllRegions();
             recacheChunks();
+
+            for(int i = 0; i < floodBlocks.length; i++)
+                floodBlocks[i].destroyEffect = dataMap.get(i).effect;
         }else{
             if(wasDrawing){
                 for(int i = 0; i < floodBlocks.length; i++){
