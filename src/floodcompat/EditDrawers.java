@@ -119,6 +119,7 @@ public class EditDrawers{
                 }
             }
         });
+        saves.closeOnBack();
 
         Events.run(Trigger.update, () -> {
             if(applied){
