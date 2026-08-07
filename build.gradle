@@ -1,5 +1,5 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import proguard.gradle.ProGuardTask
+import org.jetbrains.kotlin.gradle.dsl.*
+import proguard.gradle.*
 import arc.util.*
 import arc.util.io.*
 import arc.struct.*
@@ -10,7 +10,7 @@ buildscript {
     ext.mindustryVersion = 'v159.7'
     repositories {
         mavenCentral()
-        maven { url "https://www.jitpack.io" }
+        maven { url = "https://www.jitpack.io" }
     }
     dependencies {
         classpath "com.guardsquare:proguard-gradle:7.9.1"
@@ -122,7 +122,7 @@ tasks.register("minimize", ProGuardTask) { // We shrink because of kotlin being 
     dependsOn jar
 
     outputs.upToDateWhen {
-        new File("$buildDir/libs/FloodCompatDesktop.jar").exists()
+        new File("$layout.buildDirectory/libs/FloodCompatDesktop.jar").exists()
     }
     injars "build/libs/FloodCompatUnshrunk.jar", filter: '!module-info.class,!META-INF/**,!**.kotlin_builtins'
     outjars "build/libs/FloodCompatDesktop.jar"

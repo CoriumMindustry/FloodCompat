@@ -16,6 +16,7 @@ public class SettingCache{
     public static Block[] floodBlocks;
 
     public static boolean applied, draw, wasDrawing;
+    public static int fetchFreq;
     public static Team floodTeam;
 
     public static void init(){
@@ -24,6 +25,10 @@ public class SettingCache{
                 case -1 -> Core.bundle.get("fc-culling.disabled");
                 case 0 -> Core.bundle.get("fc-culling.no-effects");
                 default -> Core.bundle.format("fc-culling", i);
+            });
+            t.sliderPref("fc-freq", 5, 0, 60, i -> {
+                fetchFreq = i <= 0 ? 0 : 60 / i;
+                return i == 0 ? Core.bundle.get("fc-fetch-disabled") : Core.bundle.format("fc-fetch-freq", i);
             });
             t.checkPref("fc-draw", true, b -> {
                 draw = b;
@@ -35,6 +40,9 @@ public class SettingCache{
 
             SoundUtils.addSettings(t);
         });
+
+        int freq = Core.settings.getInt("fc-freq");
+        fetchFreq = freq <= 0 ? 0 : 60 / freq;
     }
 
     public static void load(byte[] data){

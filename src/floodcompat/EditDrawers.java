@@ -3,10 +3,12 @@ package floodcompat;
 import arc.*;
 import arc.audio.*;
 import arc.files.*;
+import arc.func.*;
 import arc.graphics.*;
 import arc.graphics.g2d.*;
 import arc.input.*;
 import arc.math.*;
+import arc.scene.*;
 import arc.scene.style.*;
 import arc.scene.ui.*;
 import arc.scene.ui.layout.*;
@@ -25,6 +27,7 @@ import mindustry.ui.dialogs.*;
 import mindustry.world.*;
 import mindustry.world.blocks.defense.*;
 
+import java.nio.*;
 import java.util.Objects;
 
 import static arc.math.Angles.*;
@@ -67,6 +70,32 @@ public class EditDrawers{
         }
     }
 
+    public static class TileCache{
+        public Tile tile, prev;
+        public float level = Float.NaN;
+        public double timeout;
+
+        public void set(Tile ntile){
+            prev = tile;
+            tile = ntile;
+
+            timeout = Time.time + (10f * Time.toSeconds);
+            if(prev != ntile)
+                level = Float.NaN;
+        }
+
+        public boolean responded(){
+            if(timeout > 0 && Time.time - timeout > 0){
+                level = Float.NaN;
+                timeout = -1;
+
+                return true;
+            }
+
+            return timeout < 0;
+        }
+    }
+
     public static final Seq<Data> dataMap = Seq.with(
         new Data(0.518f, 0.725f, 0.82f, 0.69f),
         new Data(0.388f, 0.682f, 0.82f, 0.75f),
@@ -80,6 +109,8 @@ public class EditDrawers{
         new Data(0f, 0.329f, 0.478f, 0.9f)
     );
 
+    public static TileCache cachedTile = new TileCache();
+    public static int update;
     public static void init(){
         IntSeq saved = Core.settings.getJson("fc-main-pal", IntSeq.class, Integer.class, IntSeq::new);
         for(int i = 0; i < saved.size; i++){
@@ -124,10 +155,49 @@ public class EditDrawers{
         Events.run(Trigger.update, () -> {
             if(applied){
                 draw = Core.settings.getBool("fc-draw");
+
+                if(fetchFreq > 0 && ++update > fetchFreq){
+                    Tile wtile = world.tileWorld(player.mouseX, player.mouseY);
+                    if(wtile != null && (cachedTile.responded() || wtile == cachedTile.tile || cachedTile.tile == null)){
+                        update = 0;
+
+                        cachedTile.set(wtile);
+                        Call.serverBinaryPacketReliable(
+                            "flood-tl",
+                            ByteBuffer.allocate(4).putInt(cachedTile.tile.pos()).array()
+                        );
+                    }
+                }
+
                 return;
             }
 
             draw = false;
+        });
+
+
+        // this is kinda cheesy, but it works!
+        Table t = ui.hudGroup.find("minimap/position");
+        if(t != null){
+            Label l = t.find("position");
+            if(l != null){
+                Boolp vis = Reflect.get(Element.class, l, "visibility");
+                l.visible(() -> vis.get() || fetchFreq > 0);
+
+                Runnable upd = Reflect.get(Element.class, l, "update");
+                l.update(() -> {
+                    upd.run();
+                    if(fetchFreq > 0)
+                        l.getText().insert(0, Core.bundle.format("fc-level", !Float.isNaN(cachedTile.level) ? Mathf.round(cachedTile.level, 0.001f) : "...") + "\n");
+                });
+            }
+        }
+
+        netClient.addBinaryPacketHandler("flood-lv", data -> {
+            if(data.length < 4) return;
+
+            cachedTile.timeout = -1f;
+            cachedTile.level = ByteBuffer.wrap(data).getFloat();
         });
 
         Events.on(EventType.PlayerChatEvent.class, e -> {
@@ -216,7 +286,7 @@ public class EditDrawers{
     }
 
     public static void recacheChunks(){
-        int sx = world.width() / BlockRenderer.chunkSize, sy = world.height() / BlockRenderer.chunkSize;
+        int sx = Mathf.ceil((float) (world.width()) / BlockRenderer.chunkSize), sy = Mathf.ceil((float) (world.height()) / BlockRenderer.chunkSize);
         for(int x = 0; x < sx; x++)
             for(int y = 0; y < sy; y++)
                 renderer.blocks.cacheChunk(floodBlocks[0].buildingCacheLayer.ordinal(), x, y);
