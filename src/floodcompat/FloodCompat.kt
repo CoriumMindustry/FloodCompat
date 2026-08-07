@@ -74,16 +74,16 @@ class FloodCompat : Mod() {
                 lastFetch = Time.millis()
 
                 // new version checking code, no longer limited to float numbers
-                Http.get("$ghApi/repos/mindustry-antigrief/FloodCompat/releases", ConsT { response: Http.HttpResponse? ->
+                Http.get("$ghApi/repos/mindustry-antigrief/FloodCompat/releases") { response ->
                     if (response == null) {
                         versionFail()
-                        return@ConsT
+                        return@get
                     }
 
                     val vars = Jval.read(response.getResultAsString()).asArray().get(0).getString("tag_name").replace("[^0-9.]".toRegex(), "")
                     if (vars.isEmpty()) {
                         versionFail()
-                        return@ConsT
+                        return@get
                     }
 
                     val mod = mods.getMod(this.javaClass)
@@ -92,17 +92,17 @@ class FloodCompat : Mod() {
                             newest = false
                             ui.chatfrag.addMessage(Strings.format("[scarlet]@", Core.bundle.get("fc-outdated")))
 
-                            return@ConsT
+                            return@get
                         }
 
                         newest = true
                         ui.showInfoFade(Strings.format("[lime]@", Core.bundle.get("fc-newest")), 5f)
 
-                        return@ConsT
+                        return@get
                     }
 
                     versionFail()
-                })
+                }
             } else if (!newest) ui.chatfrag.addMessage(Strings.format("[scarlet]@", Core.bundle.get("fc-outdated")))
 
             // Respond to flood so it would know we're using the mod
@@ -125,7 +125,7 @@ class FloodCompat : Mod() {
             Events.run(EventType.Trigger.update) { drawAnticreep() }
         }
 
-        netClient.addBinaryPacketHandler("flood-ac") { bytes: ByteArray ->
+        netClient.addBinaryPacketHandler("flood-ac") { bytes ->
             if (!SettingCache.applied || bytes.size < 14 || Core.settings.getInt("fc-quality") == 2) return@addBinaryPacketHandler // This can eat some anticreep packets right when the player joins, but it's not a big deal
 
             val buffer = ByteBuffer.wrap(bytes)
@@ -157,7 +157,7 @@ class FloodCompat : Mod() {
             )
         }
 
-        netClient.addBinaryPacketHandler("flood-nfx") { bytes: ByteArray ->
+        netClient.addBinaryPacketHandler("flood-nfx") { bytes ->
             if (!Core.settings.getBool("fc-customs") || SoundUtils.cachedSound == null) return@addBinaryPacketHandler
 
             val pos = ByteBuffer.wrap(bytes).getInt()

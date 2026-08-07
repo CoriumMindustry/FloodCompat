@@ -26,9 +26,9 @@ public class SettingCache{
                 case 0 -> Core.bundle.get("fc-culling.no-effects");
                 default -> Core.bundle.format("fc-culling", i);
             });
-            t.sliderPref("fc-freq", 5, 0, 60, i -> {
+            t.sliderPref("fc-freq", 0, 0, 30, i -> {
                 fetchFreq = i <= 0 ? 0 : 60 / i;
-                return i == 0 ? Core.bundle.get("fc-fetch-disabled") : Core.bundle.format("fc-fetch-freq", i);
+                return i == 0 ? Core.bundle.get("disabled") : i + "/s";
             });
             t.checkPref("fc-draw", true, b -> {
                 draw = b;

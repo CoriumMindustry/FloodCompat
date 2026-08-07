@@ -110,6 +110,8 @@ public class EditDrawers{
     );
 
     public static TileCache cachedTile = new TileCache();
+    /** Last non NaN level. Prevents flickering. */
+    public static float lastLevel = 0;
     public static int update;
     public static void init(){
         IntSeq saved = Core.settings.getJson("fc-main-pal", IntSeq.class, Integer.class, IntSeq::new);
@@ -187,8 +189,8 @@ public class EditDrawers{
                 Runnable upd = Reflect.get(Element.class, l, "update");
                 l.update(() -> {
                     upd.run();
-                    if(fetchFreq > 0)
-                        l.getText().insert(0, Core.bundle.format("fc-level", !Float.isNaN(cachedTile.level) ? Mathf.round(cachedTile.level, 0.001f) : "...") + "\n");
+                    if(fetchFreq > 0 && applied)
+                        l.getText().insert(0, Core.bundle.format("fc-level", !Float.isNaN(cachedTile.level) ? cachedTile.level : lastLevel) + "\n");
                 });
             }
         }
@@ -197,7 +199,9 @@ public class EditDrawers{
             if(data.length < 4) return;
 
             cachedTile.timeout = -1f;
-            cachedTile.level = ByteBuffer.wrap(data).getFloat();
+            float level = Mathf.round(ByteBuffer.wrap(data).getFloat(), 0.01f); // 0.01 so default cap (10.5) wouldn't show 10.499
+            cachedTile.level = level;
+            lastLevel = level;
         });
 
         Events.on(EventType.PlayerChatEvent.class, e -> {
