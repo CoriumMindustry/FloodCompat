@@ -210,12 +210,9 @@ public class EditDrawers{
 
             int pos = codes.lastIndexOf('■');
             if(pos > 0){
-                codes = codes.substring(
-                    codes.substring(
-                        0, codes.indexOf('■')
-                    ).lastIndexOf('['),
-                    pos
-                ).replaceAll("[]\\[]", "");
+                int index = codes.substring(0, codes.indexOf('■')).lastIndexOf('[');
+                if (index < 0) return;
+                codes = codes.substring(index, pos).replaceAll("[]\\[]", "");
             }
 
             String[] buffer = codes.split("[:■]");
