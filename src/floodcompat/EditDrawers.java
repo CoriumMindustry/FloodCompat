@@ -1,8 +1,6 @@
 package floodcompat;
 
 import arc.*;
-import arc.audio.*;
-import arc.files.*;
 import arc.func.*;
 import arc.graphics.*;
 import arc.graphics.g2d.*;
@@ -14,18 +12,14 @@ import arc.scene.ui.*;
 import arc.scene.ui.layout.*;
 import arc.struct.*;
 import arc.util.*;
-import mindustry.*;
 import mindustry.content.*;
 import mindustry.entities.*;
 import mindustry.game.*;
 import mindustry.game.EventType.*;
 import mindustry.gen.*;
 import mindustry.graphics.*;
-import mindustry.mod.*;
-import mindustry.type.*;
 import mindustry.ui.dialogs.*;
 import mindustry.world.*;
-import mindustry.world.blocks.defense.*;
 
 import java.nio.*;
 import java.util.Objects;
@@ -154,29 +148,7 @@ public class EditDrawers{
         });
         saves.closeOnBack();
 
-        Events.run(Trigger.update, () -> {
-            if(applied){
-                draw = Core.settings.getBool("fc-draw");
-
-                if(fetchFreq > 0 && ++update > fetchFreq){
-                    Tile wtile = world.tileWorld(player.mouseX, player.mouseY);
-                    if(wtile != null && (cachedTile.responded() || wtile == cachedTile.tile || cachedTile.tile == null)){
-                        update = 0;
-
-                        cachedTile.set(wtile);
-                        Call.serverBinaryPacketReliable(
-                            "flood-tl",
-                            ByteBuffer.allocate(4).putInt(cachedTile.tile.pos()).array()
-                        );
-                    }
-                }
-
-                return;
-            }
-
-            draw = false;
-        });
-
+        Timer.schedule(EditDrawers::update, 0, (float)1/60);
 
         // this is kinda cheesy, but it works!
         Table t = ui.hudGroup.find("minimap/position");
@@ -250,6 +222,32 @@ public class EditDrawers{
 
             shared[++lastPosition % shared.length] = new PalCache(e.player, colors);
         });
+    }
+
+    public static void update(){
+        if(applied){
+            draw = Core.settings.getBool("fc-draw");
+
+            if(fetchFreq > 0 && ++update > fetchFreq){
+                Tile wtile = world.tileWorld(player.mouseX, player.mouseY);
+                if (wtile == null){
+                    cachedTile.level = Float.NaN;
+                    lastLevel = 0;
+                }else if(cachedTile.responded() || wtile == cachedTile.tile || cachedTile.tile == null){
+                    update = 0;
+
+                    cachedTile.set(wtile);
+                    Call.serverBinaryPacketReliable(
+                    "flood-tl",
+                    ByteBuffer.allocate(4).putInt(cachedTile.tile.pos()).array()
+                    );
+                }
+            }
+
+            return;
+        }
+
+        draw = false;
     }
 
     public static void reloadClear(){
