@@ -43,7 +43,7 @@ class FloodCompat : Mod() {
         Log.info("Flood Compatibility loaded!")
 
         Events.on(EventType.ClientLoadEvent::class.java) {
-            initModules()
+            if (!appliedModules) initModules()
 
             SettingCache.applied = false
         }
