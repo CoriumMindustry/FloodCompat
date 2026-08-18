@@ -28,9 +28,12 @@ class FloodCompat : Mod() {
     /** Whether the mod is up to date */
     private var newest = false
 
+    private var appliedModules = false
+
     private var version: ByteArray = byteArrayOf()
 
     fun initModules() {
+        appliedModules = true
         SettingCache.init()
         EditDrawers.init()
         SoundUtils.init()
@@ -54,7 +57,7 @@ class FloodCompat : Mod() {
             SoundUtils.setVanilla()
         }
 
-        if (!state.isMenu) {
+        if (!appliedModules) {
             initModules()
             onWorldLoad() // Mod was initialized after loading a world (realistically just foo's downloading the mod at runtime)
         }
