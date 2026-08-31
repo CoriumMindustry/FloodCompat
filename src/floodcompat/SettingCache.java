@@ -26,7 +26,7 @@ public class SettingCache{
                 case 0 -> Core.bundle.get("fc-culling.no-effects");
                 default -> Core.bundle.format("fc-culling", i);
             });
-            t.sliderPref("fc-freq", 0, 0, 30, i -> {
+            t.sliderPref("fc-freq", 0, 0, 15, i -> {
                 fetchFreq = i <= 0 ? 0 : 60 / i;
                 return i == 0 ? Core.bundle.get("disabled") : i + "/s";
             });
@@ -40,9 +40,6 @@ public class SettingCache{
 
             SoundUtils.addSettings(t);
         });
-
-        int freq = Core.settings.getInt("fc-freq");
-        fetchFreq = freq <= 0 ? 0 : 60 / freq;
     }
 
     public static void load(byte[] data){

@@ -113,13 +113,15 @@ class FloodCompat : Mod() {
                 var range = Core.settings.getInt("fc-culling", -1)
                 if (Core.settings.getInt("fc-quality", 0) >= 2)
                     range = 40
+                val frequency = Core.settings.getInt("fc-freq", 0)
 
                 Call.serverBinaryPacketReliable(
                     "flood-rs",
                     (
                         getLocalVersion() +
                         byteArrayOf(
-                            range.toByte()
+                            range.toByte(),
+                            frequency.toByte()
                         )
                     )
                 )

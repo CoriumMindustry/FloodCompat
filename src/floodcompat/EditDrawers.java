@@ -31,6 +31,9 @@ import static mindustry.Vars.*;
 import static floodcompat.SettingCache.*;
 
 public class EditDrawers{
+    public static double lastPacket;
+    public static float floodLevel;
+
     public static class Data{
         final Effect effect;
         final Color color;
@@ -64,32 +67,6 @@ public class EditDrawers{
         }
     }
 
-    public static class TileCache{
-        public Tile tile, prev;
-        public float level = Float.NaN;
-        public double timeout;
-
-        public void set(Tile ntile){
-            prev = tile;
-            tile = ntile;
-
-            timeout = Time.time + (10f * Time.toSeconds);
-            if(prev != ntile)
-                level = Float.NaN;
-        }
-
-        public boolean responded(){
-            if(timeout > 0 && Time.time - timeout > 0){
-                level = Float.NaN;
-                timeout = -1;
-
-                return true;
-            }
-
-            return timeout < 0;
-        }
-    }
-
     public static final Seq<Data> dataMap = Seq.with(
         new Data(0.518f, 0.725f, 0.82f, 0.69f),
         new Data(0.388f, 0.682f, 0.82f, 0.75f),
@@ -103,10 +80,6 @@ public class EditDrawers{
         new Data(0f, 0.329f, 0.478f, 0.9f)
     );
 
-    public static TileCache cachedTile = new TileCache();
-    /** Last non NaN level. Prevents flickering. */
-    public static float lastLevel = 0;
-    public static int update;
     public static void init(){
         IntSeq saved = Core.settings.getJson("fc-main-pal", IntSeq.class, Integer.class, IntSeq::new);
         for(int i = 0; i < saved.size; i++){
@@ -162,18 +135,20 @@ public class EditDrawers{
                 l.update(() -> {
                     upd.run();
                     if(fetchFreq > 0 && applied)
-                        l.getText().insert(0, Core.bundle.format("fc-level", !Float.isNaN(cachedTile.level) ? cachedTile.level : lastLevel) + "\n");
+                        l.getText().insert(0, (state.tick - lastPacket > 180f ? "([negstat]⚠[]) " : "") + Core.bundle.format("fc-level", floodLevel) + "\n");
                 });
             }
         }
 
         netClient.addBinaryPacketHandler("flood-lv", data -> {
             if(data.length < 4) return;
+            var buffer = ByteBuffer.wrap(data);
 
-            cachedTile.timeout = -1f;
-            float level = Mathf.round(ByteBuffer.wrap(data).getFloat(), 0.01f); // 0.01 so default cap (10.5) wouldn't show 10.499
-            cachedTile.level = level;
-            lastLevel = level;
+            lastPacket = state.tick;
+            floodLevel = Mathf.round(
+                buffer.getFloat(),
+                0.01f
+            );
         });
 
         Events.on(EventType.PlayerChatEvent.class, e -> {
@@ -227,23 +202,6 @@ public class EditDrawers{
     public static void update(){
         if(applied){
             draw = Core.settings.getBool("fc-draw");
-
-            if(fetchFreq > 0 && ++update > fetchFreq){
-                Tile wtile = world.tileWorld(player.mouseX, player.mouseY);
-                if (wtile == null){
-                    cachedTile.level = Float.NaN;
-                    lastLevel = 0;
-                }else if(cachedTile.responded() || wtile == cachedTile.tile || cachedTile.tile == null){
-                    update = 0;
-
-                    cachedTile.set(wtile);
-                    Call.serverBinaryPacketReliable(
-                    "flood-tl",
-                    ByteBuffer.allocate(4).putInt(cachedTile.tile.pos()).array()
-                    );
-                }
-            }
-
             return;
         }
 
@@ -253,6 +211,7 @@ public class EditDrawers{
     public static void reloadClear(){
         draw = Core.settings.getBool("fc-draw");
 
+        resizePixmapArray();
         reload();
     }
 
@@ -264,7 +223,7 @@ public class EditDrawers{
             wasDrawing = true;
 
             syncAllRegions();
-            recacheChunks();
+            recacheChunks(); // texture swap involved, recache chunks
 
             for(int i = 0; i < floodBlocks.length; i++)
                 floodBlocks[i].destroyEffect = dataMap.get(i).effect;
@@ -277,7 +236,7 @@ public class EditDrawers{
                     b.destroyEffect = Fx.none;
                 }
 
-                recacheChunks();
+                recacheChunks(); // texture swap involved, recache chunks
 
                 wasDrawing = false;
             }
@@ -300,7 +259,7 @@ public class EditDrawers{
         public void hide(){
             super.hide();
 
-            recacheChunks();
+            drawables = null;
         }
     };
     // secondary "window" for save profiles
@@ -343,11 +302,21 @@ public class EditDrawers{
         setScale(mult);
     }};
 
+    public static TextureRegionDrawable[] drawables; // cached in order to reduce gc impact
     public static void rebuild(){
         colorEditor.reset();
 
         int columns = Core.graphics.getWidth() / Scl.scl(160) > 5 ? 5 : 2;
         float width = Core.graphics.getWidth() / Scl.scl(220) > 4 ? 220f : 130f;
+
+        if(drawables == null){
+            drawables = new TextureRegionDrawable[floodBlocks.length];
+            for(int i = 0; i < floodBlocks.length; i++){
+                drawables[i] = new TextureRegionDrawable(
+                    pixmaps[i].region
+                );
+            }
+        }
 
         if(selected == null){
             colorEditor.fill(t -> {
@@ -355,7 +324,7 @@ public class EditDrawers{
                     if(i % columns == 0) t.row();
 
                     int arr = i;
-                    t.button(new TextureRegionDrawable(floodBlocks[i].region), () -> {
+                    t.button(drawables[i], () -> {
                         selected = floodBlocks[arr];
                         selectedIndex = arr;
                         newColor.set(dataMap.get(arr).color);
@@ -761,18 +730,74 @@ public class EditDrawers{
         }).size(spacerSize, uiHeight);
     }
 
+    public static class RegionCache{
+        public final TextureRegion region;
+
+        public RegionCache(int size, Color color){
+            Pixmap pixmap = new Pixmap(size, size);
+            pixmap.fill(color);
+
+            region = new TextureRegion(
+                new Texture(
+                    pixmap
+                )
+            );
+        }
+
+        public void recolor(Color color){
+            Pixmap map = region.texture.getTextureData().getPixmap();
+            map.fill(color);
+            region.texture.draw(map);
+        }
+
+        public void apply(Block block){
+            if(block.region == region) return;
+            block.region = region;
+        }
+    }
+
+    private static RegionCache[] pixmaps;
+    static void resizePixmapArray(){
+        if(pixmaps != null && pixmaps.length == floodBlocks.length) return;
+
+        RegionCache[] newMaps = new RegionCache[floodBlocks.length];
+        if(pixmaps != null)
+            System.arraycopy(pixmaps, 0, newMaps, 0, Math.min(newMaps.length, pixmaps.length));
+        pixmaps = newMaps;
+    }
+
     static void syncAllRegions(){
         for(int i = 0; i < floodBlocks.length; i++)
             syncRegion(i);
     }
 
     static void syncRegion(int index){
-        floodBlocks[index].region = new TextureRegion(
-            new Texture(
-                new Pixmap(32, 32){{
-                    fill(dataMap.get(index).color);
-                }}
-            )
+        if(pixmaps[index] != null){
+            RegionCache p = pixmaps[index];
+
+            p.recolor(
+                dataMap.get(
+                    index
+                ).color
+            );
+
+            p.apply(
+                floodBlocks[index]
+            );
+
+            return;
+        }
+
+        RegionCache p = new RegionCache(
+            32,
+            dataMap.get(
+                index
+            ).color
+        );
+
+        pixmaps[index] = p;
+        p.apply(
+            floodBlocks[index]
         );
     }
 
