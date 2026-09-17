@@ -54,6 +54,9 @@ class FloodCompat : Mod() {
         Events.on(EventType.ResetEvent::class.java) {
             SettingCache.applied = false
 
+            anticreeps.clear()
+            tileStates.clear()
+
             SoundUtils.setVanilla()
         }
 
@@ -140,9 +143,9 @@ class FloodCompat : Mod() {
             val team = (buffer.get().toInt() and 0xff)
             val rad = (buffer.get().toInt() and 0xff)
 
-            if (pos <= 0 || rad <= 0 || end <= 0 || team <= 0) return@addBinaryPacketHandler
+            if (pos < 0 || rad <= 0 || end <= 0) return@addBinaryPacketHandler
             val tile = world.tile(pos) ?: return@addBinaryPacketHandler
-            val color = Team.get(team).color
+            val color = Team.get(team).color.cpy().a(0.4f)
 
             val tiles = Seq<Tile>()
             Geometry.circle(tile.x.toInt(), tile.y.toInt(), rad) { cx: Int, cy: Int ->
@@ -211,6 +214,8 @@ class FloodCompat : Mod() {
     }
 
     private fun drawAnticreep() {
+        if(!SettingCache.applied) return
+
         val it: MutableIterator<AnticreepState> = anticreeps.iterator()
         while (it.hasNext()) {
             val ac = it.next()
