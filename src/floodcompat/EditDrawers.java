@@ -312,6 +312,9 @@ public class EditDrawers{
         if(drawables == null){
             drawables = new TextureRegionDrawable[floodBlocks.length];
             for(int i = 0; i < floodBlocks.length; i++){
+                if(pixmaps[i] == null)
+                    syncRegion(i);
+
                 drawables[i] = new TextureRegionDrawable(
                     pixmaps[i].region
                 );
