@@ -2,9 +2,12 @@ package floodcompat;
 
 import arc.*;
 import arc.graphics.g2d.*;
+import arc.struct.*;
+import mindustry.entities.*;
 import mindustry.game.*;
 import mindustry.gen.*;
 import mindustry.world.*;
+import mindustry.world.blocks.defense.*;
 
 import java.nio.*;
 
@@ -13,9 +16,10 @@ import static mindustry.Vars.*;
 /** A class containing static cached setting values */
 public class SettingCache{
     public static TextureRegion[] floodTex;
+    public static Effect[] floodFx;
     public static Block[] floodBlocks;
 
-    public static boolean applied, draw, wasDrawing;
+    public static boolean applied, draw, wasDrawing, autotile;
     public static int fetchFreq;
     public static Team floodTeam;
 
@@ -32,7 +36,20 @@ public class SettingCache{
             });
             t.checkPref("fc-draw", true, b -> {
                 draw = b;
-                EditDrawers.reload();
+                if(applied) EditDrawers.reload();
+            });
+            t.checkPref("fc-autotiled", false, b -> {
+                autotile = b;
+                if(floodBlocks != null){
+                    for(int i = 0; i < floodBlocks.length; i++)
+                        if(floodBlocks[i] instanceof Wall w)
+                            w.autotile = b;
+                }
+
+                if(applied){
+                    if(b) EditDrawers.recacheTiled();
+                    else EditDrawers.reload();
+                }
             });
             t.checkPref("fc-editor", false);
             t.sliderPref("fc-array", 5, 1, 10, i -> i + "");
@@ -40,6 +57,10 @@ public class SettingCache{
 
             SoundUtils.addSettings(t);
         });
+
+        fetchFreq = Core.settings.getInt("fc-freq");
+        if(fetchFreq > 0) fetchFreq = 60 / fetchFreq;
+        autotile = Core.settings.getBool("fc-autotiled");
     }
 
     public static void load(byte[] data){
@@ -49,17 +70,21 @@ public class SettingCache{
 
         floodTeam = Team.get(buffer.get());
 
-        if(data.length < 2) return;
+        if(data.length < 3) return;
         int blocks = (data.length - 1) / 2;
 
+        floodFx = new Effect[blocks];
         floodBlocks = new Block[blocks];
         floodTex = new TextureRegion[blocks];
 
         for(int i = 0; i < blocks; i++){
             Block b = content.blocks().get(buffer.getShort());
 
+            if(b instanceof Wall w)
+                w.autotile = autotile;
+
             floodBlocks[i] = b;
-            floodTex[i] = b.region;
+            floodFx[i] = b.destroyEffect;
         }
 
         EditDrawers.reloadClear();

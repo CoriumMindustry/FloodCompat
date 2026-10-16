@@ -20,6 +20,8 @@ import mindustry.gen.*;
 import mindustry.graphics.*;
 import mindustry.ui.dialogs.*;
 import mindustry.world.*;
+import mindustry.world.blocks.*;
+import mindustry.world.blocks.defense.*;
 
 import java.nio.*;
 import java.util.Objects;
@@ -38,6 +40,7 @@ public class EditDrawers{
         final Effect effect;
         final Color color;
         final int rgba;
+        int effects = 3;
 
         public Data(float r, float g, float b, float a){
             color = new Color(r, g, b, a);
@@ -45,11 +48,15 @@ public class EditDrawers{
 
             effect = new Effect(25, e -> {
                 color(color);
-                randLenVectors(e.id, e.fin(), Math.min(2, Mathf.round(12 * color.a)), 12f, (x, y, fin, fout) -> {
+                randLenVectors(e.id, e.fin(), effects, 12f, (x, y, fin, fout) -> {
                     alpha((0.5f - Math.abs(fin - 0.5f)) * 2f);
                     Fill.circle(e.x + x, e.y + y, 3f + fout * 4f);
                 });
             });
+        }
+
+        public Effect effect(){
+            return effects > 0 ? effect : Fx.none;
         }
 
         public void reset(){
@@ -216,9 +223,6 @@ public class EditDrawers{
     }
 
     public static void reload(){
-        while(dataMap.size < floodBlocks.length)
-            dataMap.add(new Data(1f, 1f, 1f, 1f));
-
         if(draw){
             wasDrawing = true;
 
@@ -248,6 +252,14 @@ public class EditDrawers{
         for(int x = 0; x < sx; x++)
             for(int y = 0; y < sy; y++)
                 renderer.blocks.cacheChunk(floodBlocks[0].buildingCacheLayer.ordinal(), x, y);
+    }
+
+    public static void recacheTiled(){
+        for(Block b : floodBlocks){
+            floodTeam.data().buildingTypes.get(b).each(w ->
+                Reflect.invoke(Wall.WallBuild.class, w, "updateAutotileBits", null)
+            );
+        }
     }
 
     // cache for chat-shared palettes
@@ -710,6 +722,13 @@ public class EditDrawers{
                     updateFields();
             }).size(fieldSize, uiHeight).row();
         }
+
+        Data d = dataMap.get(selectedIndex);
+        fields.add(Core.bundle.get("fc-effects")).row();
+        fields.field(d.effects + "", TextField.TextFieldFilter.digitsOnly, i -> {
+            int in = Strings.parseInt(i, 0);
+            d.effects = Mathf.clamp(in, 0, 15);
+        }).size(fieldSize, uiHeight).row();
     }
 
     private static IntSeq n = new IntSeq();
