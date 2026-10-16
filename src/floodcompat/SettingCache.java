@@ -25,7 +25,7 @@ public class SettingCache{
 
     public static void init(){
         ui.settings.addCategory("@fc-category", Icon.waves, t -> {
-            t.sliderPref("fc-culling", -1, -1, 120, i -> switch(i){
+            t.sliderPref("fc-culling", 60, -1, 120, i -> switch(i){
                 case -1 -> Core.bundle.get("fc-culling.disabled");
                 case 0 -> Core.bundle.get("fc-culling.no-effects");
                 default -> Core.bundle.format("fc-culling", i);
@@ -48,10 +48,10 @@ public class SettingCache{
 
                 if(applied){
                     if(b) EditDrawers.recacheTiled();
-                    else EditDrawers.reload();
+                    EditDrawers.recacheChunks();
                 }
             });
-            t.checkPref("fc-editor", false);
+            t.checkPref("fc-editor", true);
             t.sliderPref("fc-array", 5, 1, 10, i -> i + "");
             t.checkPref("fc-sliders", true);
 
