@@ -73,9 +73,9 @@ public class SettingCache{
         if(data.length < 3) return;
         int blocks = (data.length - 1) / 2;
 
-        floodFx = new Effect[blocks];
         floodBlocks = new Block[blocks];
         floodTex = new TextureRegion[blocks];
+        floodFx = new Effect[blocks];
 
         for(int i = 0; i < blocks; i++){
             Block b = content.blocks().get(buffer.getShort());
@@ -84,6 +84,7 @@ public class SettingCache{
                 w.autotile = autotile;
 
             floodBlocks[i] = b;
+            floodTex[i] = b.region;
             floodFx[i] = b.destroyEffect;
         }
 

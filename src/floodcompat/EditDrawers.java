@@ -237,7 +237,7 @@ public class EditDrawers{
                     Block b = floodBlocks[i];
 
                     b.region = floodTex[i];
-                    b.destroyEffect = Fx.none;
+                    b.destroyEffect = floodFx[i];
                 }
 
                 recacheChunks(); // texture swap involved, recache chunks

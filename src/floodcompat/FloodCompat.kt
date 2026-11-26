@@ -145,7 +145,7 @@ class FloodCompat : Mod() {
 
             if (pos < 0 || rad <= 0 || end <= 0) return@addBinaryPacketHandler
             val tile = world.tile(pos) ?: return@addBinaryPacketHandler
-            val color = Team.get(team).color.cpy().a(0.4f)
+            val color = Team.get(team).color
 
             val tiles = Seq<Tile>()
             Geometry.circle(tile.x.toInt(), tile.y.toInt(), rad) { cx: Int, cy: Int ->
